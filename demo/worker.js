@@ -51,9 +51,9 @@ function reflectPad(x, p) {
   return y;
 }
 
-async function isolate(mix) {
+async function isolate(mix, sample) {
   const t0 = performance.now();
-  const enr = loudSample(mix);
+  const enr = sample || loudSample(mix);
   const eo = await enrollSess.run({ enroll: new ort.Tensor("float32", enr, [1, enr.length]) });
   const mag = eo.enroll_mag, ctx = eo.context;
   const x = reflectPad(mix, 256);
@@ -98,7 +98,7 @@ onmessage = async ({ data }) => {
       chunkSess = await ort.InferenceSession.create(cb, opt);
       postMessage({ type: "loaded", threads: ort.env.wasm.numThreads });
     } else if (data.type === "run") {
-      const { y, seconds, diag } = await isolate(data.mix);
+      const { y, seconds, diag } = await isolate(data.mix, data.sample);
       postMessage({ type: "result", y, seconds, diag }, [y.buffer]);
     }
   } catch (e) {

@@ -186,12 +186,22 @@ function level(x, mask) {
   for (let i = 0; i < f.length; i++) if (mask[i]) { s += 10 ** (f[i] / 10); k++; }
   return [10 * Math.log10(s / Math.max(1, k) + 1e-12), mask];
 }
-async function addTalker(x, snrDb) {
+// The caller's first `sec` seconds of speech (10 ms frames at least 12 dB above the quietest tenth), as VoxLock.live()
+// collects them: the voice sample, and the point after which the second talker joins.
+function firstSpeech(x, sec = 3) {
+  const H = 160, f = frameDb(x, H), floor = [...f].sort((a, b) => a - b)[Math.floor(f.length * 0.1)] + 12, need = sec * SR / H;
+  const keep = [];
+  for (let i = 0; i < f.length && keep.length < need; i++) if (f[i] >= floor) keep.push(i);
+  if (keep.length < need / 2) return null;
+  const sample = new Float32Array(keep.length * H);
+  keep.forEach((i, k) => sample.set(x.subarray(i * H, i * H + H), k * H));
+  return { sample, end: (keep[keep.length - 1] + 1) * H };
+}
+async function addTalker(x, snrDb, lag) {
   talker16k ||= await decode16k(await (await fetch(asset("talker.mp3"))).arrayBuffer());
   const [lx] = level(x), [lt] = level(talker16k);
   const g = 10 ** ((lx - snrDb - lt) / 20), y = new Float32Array(x.length);
   let peak = 0;
-  const lag = 3 * SR;  // the second talker joins after 3 s, so the caller is heard alone first, as on a real call
   for (let i = 0; i < x.length; i++) { y[i] = x[i] + (i >= lag ? g * talker16k[(i - lag) % talker16k.length] : 0); peak = Math.max(peak, Math.abs(y[i])); }
   if (peak > 0.97) for (let i = 0; i < y.length; i++) y[i] *= 0.97 / peak;
   return y;
@@ -227,14 +237,14 @@ function ensureWorker() {
     worker.postMessage({ type: "load", base: MODEL_BASE, totalBytes: MODEL_BYTES });
   });
 }
-function runWorker(mix) {
+function runWorker(mix, sample) {
   return new Promise((res, rej) => {
     worker.onmessage = ({ data }) => {
       if (data.type === "progress") { status(`Isolating: ${Math.round((100 * data.done) / data.total)}%`); bar(data.done / data.total); }
       if (data.type === "result") res(data);
       if (data.type === "error") rej(new Error(data.message));
     };
-    worker.postMessage({ type: "run", mix: mix.slice() });
+    worker.postMessage({ type: "run", mix: mix.slice(), sample: sample && sample.slice() });
   });
 }
 
@@ -248,12 +258,13 @@ async function process(x16, label) {  // x16: 16 kHz mono
     if (peak0 < 1e-3) { status("No sound reached the microphone. Check the input device in your system sound settings and try again."); return; }
     x16 = normalize(x16);  // the browser's gain control is off, so a laptop mic records very quietly
     let mix = x16;
-    if ($("[data-talker]").checked) mix = await addTalker(x16, +$("[data-talker-level]").value);
+    const first = firstSpeech(x16);   // the caller is heard alone first, as on a real call
+    if ($("[data-talker]").checked) mix = await addTalker(x16, +$("[data-talker-level]").value, first ? first.end : 3 * SR);
     if (!loaded) { status("Loading the model..."); await ensureWorker(); }
     status("Isolating: 0%"); bar(0);
-    const { y, seconds, diag } = await runWorker(mix);
+    const { y, seconds, diag } = await runWorker(mix, first && first.sample);
     console.log("[voxlock]", diag);
-    const [lx, mask] = level(mix), [ly] = level(y, mask), g = 10 ** ((lx - ly) / 20);
+    const [lx, mask] = level(mix), [ly] = level(y, mask), g = -(10 ** ((lx - ly) / 20));   // the network returns the caller inverted
     let peak = 0; for (let i = 0; i < y.length; i++) { y[i] *= g; peak = Math.max(peak, Math.abs(y[i])); }
     if (peak > 0.97) for (let i = 0; i < y.length; i++) y[i] *= 0.97 / peak;
     bar(null);
