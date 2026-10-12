@@ -9,6 +9,7 @@ import onnxruntime as ort
 SR, HOP, NFFT, PAD = 16000, 128, 512, 256
 REPO, REVISION = "arbazsiddiqui/voxlock", "770c2e4ede56458ca0ccf977de935e46d6733f2c"
 WIN2 = (0.5 - 0.5 * np.cos(2 * np.pi * np.arange(NFFT) / NFFT)).astype(np.float32) ** 2
+GAIN = -0.5   # the network returns the caller at about -2x (trained with a scale-invariant loss); this restores the input level
 
 def loud_sample(mix, sec=3.0, within=15.0):
     """The voice sample VoxLock is benchmarked with: the loudest `sec` seconds in the first `within` seconds."""
@@ -53,6 +54,11 @@ class VoxLock:
         """A live stream locked to the voice in `sample` (about 3 s of the caller, 16 kHz mono)."""
         return Stream(self, np.asarray(sample, np.float32))
 
+    def live(self, sec=3.0):
+        """A live stream that finds the caller by itself: it passes audio through until it has heard `sec` seconds
+        of speech, takes those as the voice sample, and isolates from then on."""
+        return LiveStream(self, sec)
+
     def isolate(self, audio, sample=None):
         """The whole call in, the caller out, same length. Without `sample`, uses loud_sample(audio)."""
         audio = np.asarray(audio, np.float32)
@@ -86,7 +92,7 @@ class Stream:
             self.ola, self.env = ola[done:], env[done:]
             self.buf = self.buf[done:]
             cut = min(self.dropped, len(y)); self.dropped -= cut
-            out.append(y[cut:])
+            out.append(y[cut:] * GAIN)
         return np.concatenate(out) if out else np.zeros(0, np.float32)
 
     def push(self, chunk, frames_per_run=100):
@@ -112,6 +118,69 @@ class Stream:
         x = np.pad(x, (0, max(0, (nfr - 1) * HOP + NFFT - len(x))))
         self.buf = x
         y = self._run(100)
-        y = np.concatenate([y, self.ola / np.where(self.env > 1e-11, self.env, 1.0)])
+        y = np.concatenate([y, self.ola / np.where(self.env > 1e-11, self.env, 1.0) * GAIN])
         self.buf = None
         return y
+
+class LiveStream:
+    """Pass-through until `sec` seconds of speech are heard, then a Stream locked to that speech.
+
+    Speech = 10 ms frames at least `margin` dB above the noise floor (the 10th percentile of frame energy so far).
+    At the switch the stream is first run over the last 250 ms of audio, whose output is dropped, so it does not start
+    from an empty LSTM state, and the isolated audio fades in over 10 ms."""
+
+    WARM, FADE = 4000, 160
+
+    def __init__(self, vl, sec=3.0, margin=12.0):
+        self.vl, self.need, self.margin = vl, int(sec * SR / 160), margin
+        self.stream = None
+        self.voiced, self.energy = [], []
+        self.rest = np.zeros(0, np.float32)        # samples not yet in a whole 10 ms frame
+        self.recent = np.zeros(0, np.float32)      # the last WARM input samples
+        self.skip = 0                              # stream output samples still to drop (the warm-up)
+        self.after = np.zeros(0, np.float32)       # input since the switch, for the fade-in
+        self.faded = 0
+
+    @property
+    def locked(self):
+        return self.stream is not None
+
+    def _isolated(self, chunk, frames_per_run):
+        if self.faded < self.FADE:
+            self.after = np.concatenate([self.after, chunk])
+        y = self.stream.push(chunk, frames_per_run)
+        cut = min(self.skip, len(y)); self.skip -= cut; y = y[cut:]
+        if self.faded < self.FADE and len(y):
+            n = min(len(y), self.FADE - self.faded)
+            r = (np.arange(self.faded, self.faded + n, dtype=np.float32) + 1) / self.FADE
+            y = y.copy(); y[:n] = r * y[:n] + (1 - r) * self.after[self.faded: self.faded + n]
+            self.faded += n
+            if self.faded >= self.FADE: self.after = np.zeros(0, np.float32)
+        return y
+
+    def push(self, chunk, frames_per_run=100):
+        chunk = np.asarray(chunk, np.float32)
+        if self.stream is not None:
+            return self._isolated(chunk, frames_per_run)
+        self.recent = np.concatenate([self.recent, chunk])[-self.WARM:]
+        x = np.concatenate([self.rest, chunk])
+        n = len(x) // 160
+        for f in x[: n * 160].reshape(n, 160):
+            e = 10 * np.log10((f ** 2).mean() + 1e-10)
+            self.energy.append(e)
+            if len(self.energy) >= 20 and e >= np.percentile(self.energy, 10) + self.margin:
+                self.voiced.append(f)
+        self.rest = x[n * 160:]
+        if len(self.voiced) >= self.need:
+            self.stream = self.vl.stream(np.concatenate(self.voiced[: self.need]))
+            self.voiced, self.energy = [], []
+            self.skip = len(self.recent)
+            self._isolated_warm(self.recent, frames_per_run)
+        return chunk
+
+    def _isolated_warm(self, warm, frames_per_run):
+        y = self.stream.push(warm, frames_per_run)
+        cut = min(self.skip, len(y)); self.skip -= cut
+
+    def flush(self):
+        return self.stream.flush() if self.stream is not None else np.zeros(0, np.float32)
