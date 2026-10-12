@@ -130,7 +130,7 @@ The ONNX model comes in four precisions, all in the [Hugging Face repository](ht
 | `fp16` | 100%\* | `enroll_fp16.onnx`, `chunk_fp16.onnx` | 48 MB | 4.95\* | 0.11\* | 1.31 / 1.00 |
 | `fp32` | 100% | `enroll.onnx`, `chunk.onnx` | 95 MB | 4.95 | 0.11 | 1.33 / 0.97 |
 
-Quality is the share of the words `fp32` transcribes correctly that each precision keeps, on all 265 recordings of the Krisp benchmark above. Even the `int8` model is ahead of every other model in that table. The real-time factor is streaming on an Apple M2 Pro; below 1 keeps up with a live call. The 8-bit files are post-training dynamic quantization of the same weights: `int8` stores the LSTM weights in 8 bits, `int8-full` the LSTMs and the matrix multiplies. `int8-full` is the fastest: on one thread it keeps up with 80 ms chunks (0.80x real time on the Xeon server), where `int8` needs 160 ms chunks (0.73x).
+Quality: the share of `fp32`'s correctly transcribed words each precision keeps, on the 265 Krisp recordings. Real-time factor: streaming on an Apple M2 Pro; below 1 keeps up with a live call.
 
 \* `fp16` is the float32 model with its weights rounded to float16. Its output matches float32 to 45 dB, so it carries the float32 scores. The browser demo uses it.
 
