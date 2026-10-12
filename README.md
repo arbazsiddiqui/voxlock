@@ -123,14 +123,14 @@ python isolate.py --ckpt ckpt --in call.wav --out caller.wav
 
 The ONNX model comes in four precisions, all in the [Hugging Face repository](https://huggingface.co/arbazsiddiqui/voxlock/tree/main/onnx). Choose with `VoxLock(precision=...)`, `voxlock --precision ...` or `VoxLockFilter(precision=...)`.
 
-| Precision | Files | Download | Word error rate % | Background words leaked / min | Real-time factor, 40 ms chunks, 2 / 4 threads |
-|---|---|---|---|---|---|
-| `int8` (default) | `enroll.onnx`, `chunk_int8.onnx` | 75 MB | 5.11 | 0.12 | 0.89 / 0.69 |
-| `int8-full` | `enroll.onnx`, `chunk_int8_full.onnx` | 67 MB | 5.85 | 0.04 | 0.67 / 0.54 |
-| `fp16` | `enroll_fp16.onnx`, `chunk_fp16.onnx` | 48 MB | 4.95\* | 0.11\* | 1.31 / 1.00 |
-| `fp32` | `enroll.onnx`, `chunk.onnx` | 95 MB | 4.95 | 0.11 | 1.33 / 0.97 |
+| Precision | Quality | Files | Download | Word error rate % | Background words leaked / min | Real-time factor, 40 ms chunks, 2 / 4 threads |
+|---|---|---|---|---|---|---|
+| `int8` (default) | 99.8% | `enroll.onnx`, `chunk_int8.onnx` | 75 MB | 5.11 | 0.12 | 0.89 / 0.69 |
+| `int8-full` | 99.1% | `enroll.onnx`, `chunk_int8_full.onnx` | 67 MB | 5.85 | 0.04 | 0.67 / 0.54 |
+| `fp16` | 100%\* | `enroll_fp16.onnx`, `chunk_fp16.onnx` | 48 MB | 4.95\* | 0.11\* | 1.31 / 1.00 |
+| `fp32` | 100% | `enroll.onnx`, `chunk.onnx` | 95 MB | 4.95 | 0.11 | 1.33 / 0.97 |
 
-Scores are on all 265 recordings of the Krisp benchmark above, so even the `int8` model is ahead of every other model in the table. The real-time factor is streaming on an Apple M2 Pro; below 1 keeps up with a live call. The 8-bit files are post-training dynamic quantization of the same weights: `int8` stores the LSTM weights in 8 bits, `int8-full` the LSTMs and the matrix multiplies. `int8-full` is the fastest: on one thread it keeps up with 80 ms chunks (0.80x real time on the Xeon server), where `int8` needs 160 ms chunks (0.73x).
+Quality is the share of the words `fp32` transcribes correctly that each precision keeps, on all 265 recordings of the Krisp benchmark above. Even the `int8` model is ahead of every other model in that table. The real-time factor is streaming on an Apple M2 Pro; below 1 keeps up with a live call. The 8-bit files are post-training dynamic quantization of the same weights: `int8` stores the LSTM weights in 8 bits, `int8-full` the LSTMs and the matrix multiplies. `int8-full` is the fastest: on one thread it keeps up with 80 ms chunks (0.80x real time on the Xeon server), where `int8` needs 160 ms chunks (0.73x).
 
 \* `fp16` is the float32 model with its weights rounded to float16. Its output matches float32 to 45 dB, so it carries the float32 scores. The browser demo uses it.
 
