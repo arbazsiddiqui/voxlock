@@ -5,7 +5,7 @@
 **[Live demo](https://arbazsiddiqui.me/voxlock)** · **[Model on Hugging Face](https://huggingface.co/arbazsiddiqui/voxlock)**
 
 <p>
-  <a href="https://pypi.org/project/voxlock/"><img alt="PyPI" src="https://img.shields.io/pypi/v/voxlock?label=pypi"></a>
+  <a href="https://pypi.org/project/voxlock/"><img alt="PyPI" src="https://img.shields.io/pypi/v/voxlock?label=pypi&cacheSeconds=3600"></a>
   <a href="https://huggingface.co/arbazsiddiqui/voxlock"><img alt="Hugging Face" src="https://img.shields.io/badge/%F0%9F%A4%97%20model-voxlock-yellow"></a>
   <a href="#results"><img alt="Krisp benchmark WER 4.95%" src="https://img.shields.io/badge/Krisp%20benchmark%20WER-4.95%25-brightgreen"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
