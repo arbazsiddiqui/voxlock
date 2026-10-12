@@ -18,6 +18,9 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
+[project.optional-dependencies]
+pipecat = ["pipecat-ai>=1.12"]
+
 [project.urls]
 Homepage = "https://huggingface.co/arbazsiddiqui/voxlock"
 Repository = "https://github.com/arbazsiddiqui/voxlock"
