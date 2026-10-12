@@ -33,10 +33,11 @@
 | TIGER | open | 14.72 | 37.24 |
 | No processing | | 23.21 | 66.48 |
 | SAM-Audio small (Meta) | open | 33.77 | 21.15 |
+| ElevenLabs Voice Isolator\*\* | paid | 43.79\*\* | 144.6\*\* |
 
 265 real recordings from the [Krisp Voice Isolation Benchmark](https://huggingface.co/datasets/Krisp-AI/VoiceIsolation-Benchmark-Dataset), transcribed with Parakeet TDT 0.6B v2 and scored with the benchmark's published method. **Background words leaked** counts words transcribed while only the background was talking, per minute of that audio.
 
-ElevenLabs Voice Isolator keeps background voices: on 7 of these recordings with heavy background speech, it let through 144.6 background words per minute, against 154.3 with no processing and 0.0 for VoxLock.
+\*\* ElevenLabs Voice Isolator, run on the 7 of these recordings with the most background speech, not all 265. On the same 7, no processing scores 45.82% and 154.3 leaked words per minute, and VoxLock 2.98% and 0.0.
 
 On real AMI meetings not used in training, with the headset wearer as the caller:
 

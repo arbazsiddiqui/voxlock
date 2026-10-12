@@ -155,7 +155,7 @@ async function pick(i) {
   const scores = `<div class="vl-heard"><span>Speech-to-text hears, VoxLock off</span><p>${esc(c.heard_off)}</p></div><div class="vl-heard on"><span>VoxLock on</span><p>${esc(c.heard_on)}</p></div>`;
   pa.set({ title: c.title, meta: c.source, off, on, scores });
 }
-fetch(asset("clips.json")).then((r) => r.json()).then((rows) => {
+fetch(asset("clips.json"), { cache: "no-cache" }).then((r) => r.json()).then((rows) => {
   clips = rows;
   $("[data-clips]").innerHTML = rows.map((c, i) => `<li><button class="vl-clip" aria-current="false"><span class="n">${String(i + 1).padStart(2, "0")}</span><b>${c.title}</b><small>${Math.round(c.dur_s)} s</small></button></li>`).join("");
   root.querySelectorAll(".vl-clip").forEach((b, i) => (b.onclick = () => pick(i)));
