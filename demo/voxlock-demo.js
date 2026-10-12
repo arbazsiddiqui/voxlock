@@ -27,7 +27,6 @@ root.innerHTML = `
           <option value="12">12 dB quieter than you</option>
         </select>
       </div>
-      <p class="vl-tip">Talk for the whole recording, starting right away: VoxLock locks on to the loudest voice in the first 15 seconds. The second talker joins after 3 seconds. The browser's own noise suppression is off.</p>
       <div class="vl-status" data-status></div>
       <div class="vl-bar" data-bar hidden><div></div></div>
       <div class="vl-tip" data-diag></div>
@@ -223,6 +222,7 @@ function ensureWorker() {
       if (data.type === "error") { worker = null; rej(new Error(data.message)); }
     };
     worker.postMessage({ type: "load", base: MODEL_BASE, totalBytes: MODEL_BYTES });
+    if (MODEL_BASE === HF_BASE) fetch(HF_BASE.replace("onnx/", "config.yaml"), { method: "HEAD", mode: "no-cors" }).catch(() => {});  // Hugging Face counts downloads on config.yaml
   });
 }
 function runWorker(mix) {
