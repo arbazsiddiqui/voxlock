@@ -7,7 +7,7 @@ import numpy as np
 import onnxruntime as ort
 
 SR, HOP, NFFT, PAD = 16000, 128, 512, 256
-REPO, REVISION = "arbazsiddiqui/voxlock", "770c2e4ede56458ca0ccf977de935e46d6733f2c"
+REPO, REVISION = "arbazsiddiqui/voxlock", "a50f4e1d109301d4b6f61dec57ebb1a61e7d8f03"
 WIN2 = (0.5 - 0.5 * np.cos(2 * np.pi * np.arange(NFFT) / NFFT)).astype(np.float32) ** 2
 GAIN = -0.5   # the network returns the caller at about -2x (trained with a scale-invariant loss); this restores the input level
 
@@ -29,26 +29,39 @@ def load_audio(path):
     x = x.mean(1)
     return (soxr.resample(x, sr, SR) if sr != SR else x).astype(np.float32)
 
-def download(fp16=True):
+PRECISIONS = {                             # name: (enroll file, chunk file) in onnx/
+    "int8": ("enroll", "chunk_int8"),         # LSTMs in 8-bit
+    "int8-full": ("enroll", "chunk_int8_full"),  # LSTMs and matrix multiplies in 8-bit
+    "fp16": ("enroll_fp16", "chunk_fp16"),    # float16 weights
+    "fp32": ("enroll", "chunk"),
+}
+
+def download(precision="int8"):
     """Fetch the ONNX files from Hugging Face into its cache, once. Returns the folder holding them."""
     from huggingface_hub import hf_hub_download
-    sfx = "_fp16" if fp16 else ""
     hf_hub_download(REPO, "config.yaml", revision=REVISION)
-    for name in (f"onnx/enroll{sfx}.onnx", f"onnx/chunk{sfx}.onnx"):
-        path = hf_hub_download(REPO, name, revision=REVISION)
+    for name in PRECISIONS[precision]:
+        path = hf_hub_download(REPO, f"onnx/{name}.onnx", revision=REVISION)
     return Path(path).parent
 
 class VoxLock:
-    def __init__(self, model_dir=None, fp16=True, threads=0):
-        """model_dir: a folder with enroll*.onnx and chunk*.onnx; None downloads them from Hugging Face.
-        fp16=True uses the 50 MB float16-weight files, False the float32 ones. threads=0 lets onnxruntime choose."""
-        model_dir = Path(model_dir) if model_dir else download(fp16)
+    def __init__(self, model_dir=None, precision="int8", threads=0, fp16=None):
+        """model_dir: a folder with the ONNX files; None downloads them from Hugging Face.
+        precision: "int8" (75 MB), "int8-full" (67 MB, fastest), "fp16" (48 MB) or "fp32" (95 MB); see PRECISIONS.
+        threads=0 lets onnxruntime choose. fp16=True/False is the 1.0 spelling of precision="fp16"/"fp32"."""
+        if fp16 is not None:
+            precision = "fp16" if fp16 else "fp32"
+        if precision not in PRECISIONS:
+            raise ValueError(f"precision must be one of {', '.join(PRECISIONS)}")
+        model_dir = Path(model_dir) if model_dir else download(precision)
         so = ort.SessionOptions()
         if threads:
             so.intra_op_num_threads = threads
-        sfx = "_fp16" if fp16 and (model_dir / "chunk_fp16.onnx").exists() else ""
-        self.enroll = ort.InferenceSession(str(model_dir / f"enroll{sfx}.onnx"), so)
-        self.chunk = ort.InferenceSession(str(model_dir / f"chunk{sfx}.onnx"), so)
+        names = PRECISIONS[precision]
+        if not (model_dir / f"{names[1]}.onnx").exists():
+            names = ("enroll", "chunk")
+        self.enroll = ort.InferenceSession(str(model_dir / f"{names[0]}.onnx"), so)
+        self.chunk = ort.InferenceSession(str(model_dir / f"{names[1]}.onnx"), so)
 
     def stream(self, sample):
         """A live stream locked to the voice in `sample` (about 3 s of the caller, 16 kHz mono)."""

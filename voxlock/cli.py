@@ -9,10 +9,12 @@ def main(argv=None):
     ap.add_argument("inputs", nargs="+", help="audio files, any sample rate")
     ap.add_argument("-o", "--out", help="output file (one input) or folder (several); default: <name>.voxlock.wav")
     ap.add_argument("--sample", help="a recording of the caller's voice; default: the loudest 3 s in the first 15 s")
-    ap.add_argument("--fp32", action="store_true", help="use the float32 model files")
+    ap.add_argument("--precision", choices=["int8", "int8-full", "fp16", "fp32"], default="int8",
+                    help="model files: int8 (default), int8-full (fastest), fp16 or fp32 (the benchmarked model)")
+    ap.add_argument("--fp32", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--threads", type=int, default=0)
     a = ap.parse_args(argv)
-    vl = VoxLock(fp16=not a.fp32, threads=a.threads)
+    vl = VoxLock(precision="fp32" if a.fp32 else a.precision, threads=a.threads)
     sample = load_audio(a.sample) if a.sample else None
     for src in map(Path, a.inputs):
         if a.out and len(a.inputs) == 1:
