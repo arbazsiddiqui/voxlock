@@ -11,7 +11,7 @@
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
 </p>
 
-<a href="assets/demo.mp4"><img src="assets/demo-play.jpg" alt="The same 6.5 seconds of a call with VoxLock off and on: off, speech-to-text transcribes the other person; on, it transcribes the caller" width="100%"></a>
+https://github.com/user-attachments/assets/d32cf251-b461-4a91-93b1-21a8bd6ad840
 
 ## Results
 
