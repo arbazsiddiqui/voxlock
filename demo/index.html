@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VoxLock demo</title>
+<meta name="description" content="VoxLock, the best performing voice isolator. Listen to real recordings with it on and off, or record your own voice. Runs in your browser.">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<link rel="stylesheet" href="voxlock-demo.css">
+</head>
+<body>
+<main class="page">
+  <h1>VoxLock</h1>
+  <p class="page-lede">The best performing voice isolator. It keeps the caller's voice and removes the other voices in the room before speech-to-text hears them. One input, the call audio; it picks out the caller by itself.</p>
+  <dl class="page-stats">
+    <div><dt>Word error rate</dt><dd>4.95%</dd><span>Krisp Voice Isolation Benchmark</span></div>
+    <div><dt>Background words leaked</dt><dd>0.11/min</dd><span>same benchmark</span></div>
+    <div><dt>Real meetings (AMI)</dt><dd>10.12%</dd><span>word error rate</span></div>
+    <div><dt>Model</dt><dd>27M</dd><span>streaming, 24 ms latency</span></div>
+  </dl>
+  <div id="voxlock-demo"><noscript>The demo needs JavaScript.</noscript></div>
+  <footer class="page-foot">
+    <p><a href="https://huggingface.co/arbazsiddiqui/voxlock">Hugging Face</a> · <a href="https://github.com/arbazsiddiqui/voxlock">GitHub</a></p>
+    <p>Recordings: <a href="https://groups.inf.ed.ac.uk/ami/corpus/">AMI Meeting Corpus</a> (CC BY 4.0). Second talker: LibriSpeech test-clean (CC BY 4.0), room-simulated. Runtime: <a href="https://onnxruntime.ai">ONNX Runtime Web</a> (MIT).</p>
+  </footer>
+</main>
+<script type="module" src="voxlock-demo.js?v=5"></script>
+</body>
+</html>

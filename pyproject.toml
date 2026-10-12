@@ -1,0 +1,35 @@
+[project]
+name = "voxlock"
+version = "1.0.0"
+description = "The best performing voice isolator there is: keeps the caller's voice and removes the other voices in the room. Streaming, CPU, ONNX."
+readme = "README.pypi.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = ["numpy>=1.24", "onnxruntime>=1.17", "huggingface_hub>=0.20", "soundfile>=0.12", "soxr>=0.3"]
+authors = [{ name = "Arbaz Siddiqui", email = "arbaz00@gmail.com" }]
+keywords = ["voice isolation", "background voice cancellation", "target speaker extraction", "speech enhancement", "voice agents", "telephony", "speech-to-text", "streaming", "real-time", "onnx"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Sound/Audio :: Speech",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://huggingface.co/arbazsiddiqui/voxlock"
+Repository = "https://github.com/arbazsiddiqui/voxlock"
+Demo = "https://arbazsiddiqui.me/voxlock"
+Issues = "https://github.com/arbazsiddiqui/voxlock/issues"
+
+[project.scripts]
+voxlock = "voxlock.cli:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["voxlock"]

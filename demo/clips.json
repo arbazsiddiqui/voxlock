@@ -1,0 +1,26 @@
+[
+ {
+  "id": "bystander_000",
+  "title": "Someone talking over the caller",
+  "source": "Simulated: two LibriSpeech test-clean speakers (CC BY 4.0) in a simulated room",
+  "dur_s": 14.0,
+  "heard_off": "The English it is evident, had they not been previously killed and receiving a king, was never have parted with so considerable a sum, and while they weakened themselves by the",
+  "heard_on": "This, Mrs. Poisir said, blushing and believing that the captain was really interested in her milk pans, and would adjust his opinion of her to the appearance of her dairy."
+ },
+ {
+  "id": "tail_024",
+  "title": "Someone keeps talking after the caller stops",
+  "source": "Simulated: two LibriSpeech test-clean speakers (CC BY 4.0) in a simulated room",
+  "dur_s": 12.0,
+  "heard_off": "No harm would have been done had it not been that as he passed your door he perceived the key which had been left by the carelessness of your servant. I will work him to tell himself that their humble and contrite hearts it might be paid afar.",
+  "heard_on": "No harm would have been done had it not been that as he passed your door He perceived the key which had been left by the carelessness of your servant"
+ },
+ {
+  "id": "tail_028",
+  "title": "A second voice cuts in at the end",
+  "source": "Simulated: two LibriSpeech test-clean speakers (CC BY 4.0) in a simulated room",
+  "dur_s": 11.4,
+  "heard_off": "You seem anxious, my uncle, I said, seeing him continually with his glass to his eye. Anxious! This honest manufacturer talks well...",
+  "heard_on": "You seem anxious, my uncle, I said, seeing him continually with his glass to his eye. Anxious?"
+ }
+]
