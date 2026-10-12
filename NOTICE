@@ -1,0 +1,10 @@
+VoxLock
+Copyright 2026 Arbaz Siddiqui
+
+wesep/ is the WeSep model code from the REAL-TSE challenge baseline (https://github.com/REAL-TSE/wesep-real-tse),
+Apache-2.0 per its source headers, used unchanged.
+
+demo/ort/ is ONNX Runtime Web 1.20.1 (https://github.com/microsoft/onnxruntime), MIT License, Copyright Microsoft.
+
+Demo recordings: Krisp Voice Isolation Benchmark (CC BY-NC 4.0, Krisp) and the AMI Meeting Corpus (CC BY 4.0).
+Second talker in the demo: LibriSpeech test-clean (CC BY 4.0), room-simulated.

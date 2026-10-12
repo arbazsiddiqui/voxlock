@@ -1,0 +1,13 @@
+__pycache__/
+.venv/
+ckpt/
+data/
+onnx/
+demo/models/
+*.pt
+hf/
+CLAUDE.md
+build/
+dist/
+*.egg-info/
+README.pypi.md
