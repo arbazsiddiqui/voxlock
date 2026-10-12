@@ -6,13 +6,15 @@ const MODEL_BASE = new URLSearchParams(location.search).get("models") || HF_BASE
 const asset = (p) => new URL(p, import.meta.url).href;
 function mount(root) {
 root.classList.add("vl");
+const recordOnly = root.dataset.only === "record";   // the Hugging Face Space shows only the record section
 root.innerHTML = `
+${recordOnly ? "" : `
   <div class="vl-section">
     <h3 class="vl-h">Listen</h3>
     <p class="vl-note">A caller with a second person talking in the room. Flip the switch while it plays: off is the call as recorded, on is VoxLock. Below each clip is what speech-to-text hears.</p>
     <div class="vl-layout"><ol class="vl-clips" data-clips></ol><div class="vl-player" data-player-a></div></div>
     <p class="vl-fine">Simulated calls: two LibriSpeech test-clean speakers, never used in training, in a simulated room. Transcripts by Whisper small.</p>
-  </div>
+  </div>`}
   <div class="vl-section">
     <h3 class="vl-h">Try your own voice</h3>
     <p class="vl-note">Record up to 15 seconds or upload a file. Mix in a second talker, or play a video near the mic while you talk. VoxLock runs in this tab; nothing is uploaded.</p>
@@ -144,7 +146,7 @@ async function decode(url) {
 }
 
 // ---------- precomputed clips ----------
-const pa = new Player($("[data-player-a]"));
+const pa = recordOnly ? null : new Player($("[data-player-a]"));
 let clips = [];
 async function pick(i) {
   root.querySelectorAll(".vl-clip").forEach((b, j) => b.setAttribute("aria-current", String(j === i)));
@@ -154,7 +156,7 @@ async function pick(i) {
   const scores = `<div class="vl-heard"><span>Speech-to-text hears, VoxLock off</span><p>${esc(c.heard_off)}</p></div><div class="vl-heard on"><span>VoxLock on</span><p>${esc(c.heard_on)}</p></div>`;
   pa.set({ title: c.title, meta: c.source, off, on, scores });
 }
-fetch(asset("clips.json"), { cache: "no-cache" }).then((r) => r.json()).then((rows) => {
+if (!recordOnly) fetch(asset("clips.json"), { cache: "no-cache" }).then((r) => r.json()).then((rows) => {
   clips = rows;
   $("[data-clips]").innerHTML = rows.map((c, i) => `<li><button class="vl-clip" aria-current="false"><span class="n">${String(i + 1).padStart(2, "0")}</span><b>${c.title}</b><small>${Math.round(c.dur_s)} s</small></button></li>`).join("");
   root.querySelectorAll(".vl-clip").forEach((b, i) => (b.onclick = () => pick(i)));
@@ -221,8 +223,8 @@ function ensureWorker() {
       if (data.type === "loaded") { loaded = true; worker.threads = data.threads; res(); }
       if (data.type === "error") { worker = null; rej(new Error(data.message)); }
     };
+    worker.onerror = (e) => { e.preventDefault(); worker = null; rej(new Error(e.message || "The model could not be loaded in this tab.")); };
     worker.postMessage({ type: "load", base: MODEL_BASE, totalBytes: MODEL_BYTES });
-    if (MODEL_BASE === HF_BASE) fetch(HF_BASE.replace("onnx/", "config.yaml"), { method: "HEAD", mode: "no-cors" }).catch(() => {});  // Hugging Face counts downloads on config.yaml
   });
 }
 function runWorker(mix) {
@@ -317,7 +319,7 @@ $("[data-file]").onchange = async (e) => {
     process(x, f.name + (long ? ` (first ${MAX_UPLOAD_S} s)` : ""));
   } catch (err) { status(`Could not read that file: ${err.message}`); }
 };
-document.addEventListener("astro:before-swap", () => { pa.stop(); pb.stop(); if (rec) rec.stop(); }, { once: true });
+document.addEventListener("astro:before-swap", () => { pa?.stop(); pb.stop(); if (rec) rec.stop(); }, { once: true });
 }
 
 // Mount on first load and again after client-side navigation (the site's router swaps pages without a reload).
