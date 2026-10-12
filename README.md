@@ -36,6 +36,8 @@
 
 265 real recordings from the [Krisp Voice Isolation Benchmark](https://huggingface.co/datasets/Krisp-AI/VoiceIsolation-Benchmark-Dataset), transcribed with Parakeet TDT 0.6B v2 and scored with the benchmark's published method. **Background words leaked** counts words transcribed while only the background was talking, per minute of that audio.
 
+ElevenLabs Voice Isolator keeps background voices: on 7 of these recordings with heavy background speech, it let through 144.6 background words per minute, against 154.3 with no processing and 0.0 for VoxLock.
+
 On real AMI meetings not used in training, with the headset wearer as the caller:
 
 | Model | Access | Word error rate % | Background words leaked / min |
