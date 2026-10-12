@@ -1,0 +1,13 @@
+# Changelog
+
+## 1.1.0
+
+- 8-bit models: `VoxLock(precision=...)` with `int8` (the new default), `int8-full`, `fp16` and `fp32`; `voxlock --precision`.
+  `int8` scores 5.11% word error rate on the Krisp benchmark against 4.95% for `fp32`, and streams in real time on fewer CPU threads.
+- `VoxLock.live()`: a stream that takes the first 3 seconds of speech as the voice sample, passing the audio through until then.
+- Pipecat audio filter, `pip install "voxlock[pipecat]"`: `voxlock.pipecat.VoxLockFilter`. Tested with Pipecat 1.12.0.
+- Output is at the input's level. 1.0.0 returned the caller at twice the level, so the command line could clip loud words.
+
+## 1.0.0
+
+- First release: `VoxLock.isolate`, `VoxLock.stream` and the `voxlock` command line.

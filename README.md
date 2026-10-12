@@ -61,28 +61,54 @@ pip install voxlock
 voxlock call.wav -o caller.wav
 ```
 
-Any sample rate, mono or stereo. The model, 50 MB, downloads from Hugging Face on first use.
+Any sample rate, mono or stereo. The model downloads from Hugging Face on first use: 75 MB, the 8-bit version (see [Quantized models](#quantized-models)).
 
 ```python
 import voxlock
 
-vl = voxlock.VoxLock()
+vl = voxlock.VoxLock()                     # precision="fp32" for the benchmarked model
 call = voxlock.load_audio("call.wav")      # 16 kHz mono float32
 caller = vl.isolate(call)                  # same length as the input
 ```
 
 VoxLock keeps the voice in a 3-second sample of the caller. `isolate` takes the loudest 3 seconds in the first 15 seconds of the call, which is how it was benchmarked. Pass `sample=` to choose it yourself.
 
-### Live calls
+### Streaming
+
+Push the call in as it arrives, as 16 kHz float32 chunks of any size. Each `push` returns the isolated audio that is ready, about 24 ms behind the input.
 
 ```python
-stream = vl.stream(sample)                 # about 3 s of the caller, 16 kHz mono
-for chunk in call_audio:                   # 16 kHz float32 chunks of any size
-    send(stream.push(chunk))               # the isolated audio, about 24 ms behind
+vl = voxlock.VoxLock(threads=4)
+stream = vl.live()                         # finds the caller by itself
+for chunk in call_audio:                   # e.g. 40 ms = 640 samples
+    send(stream.push(chunk))
 send(stream.flush())                       # at the end of the call
 ```
 
-The stream needs the sample before it starts. In a voice agent, take the first 3 seconds the caller speaks, or a sample saved from an earlier call, and pass the audio through until then. Streaming gives the same output as `isolate`. With 4 CPU threads on an Apple M2 Pro it runs in real time from 40 ms chunks (`VoxLock(threads=4)`).
+`live()` passes the audio through unchanged until it has heard 3 seconds of speech, takes that speech as the voice sample and isolates from then on. On our test calls it switched over a median of 3.6 seconds in.
+
+If you already have a sample, from earlier in the call or from a previous call, isolation starts with the first chunk:
+
+```python
+stream = vl.stream(sample)                 # about 3 s of the caller, 16 kHz mono
+```
+
+Streaming gives the same output as `isolate` with the same sample. To keep up with a live call, push chunks of 40 ms or more: 40 ms chunks on 4 threads run at 0.69x real time on an Apple M2 Pro and 0.89x on an 8-vCPU Xeon server, and 80 ms chunks on 2 threads at 0.67x on the Xeon. Larger chunks use less CPU and add their length to the delay.
+
+### Pipecat
+
+```bash
+pip install "voxlock[pipecat]"
+```
+
+```python
+from pipecat.transports.base_transport import TransportParams
+from voxlock.pipecat import VoxLockFilter
+
+params = TransportParams(audio_in_enabled=True, audio_in_filter=VoxLockFilter())
+```
+
+The filter cleans the caller's audio before VAD and speech-to-text, at any transport sample rate (Twilio's 8 kHz included). Like `live()`, it passes audio through until it has heard 3 seconds of the caller; pass `voice_sample=` to isolate from the start. It runs the `int8` model in 80 ms chunks on 2 threads by default (`chunk_ms=`, `threads=`, `precision=`). With a single vCPU, such as Pipecat Cloud's `agent-2x`, use `VoxLockFilter(chunk_ms=160, threads=1)`: 0.73x real time on the Xeon server. Half a vCPU (`agent-1x`) is too little. A full voice agent: [examples/pipecat_bot.py](examples/pipecat_bot.py). Tested with Pipecat 1.12.0.
 
 ### PyTorch
 
@@ -92,6 +118,23 @@ pip install -r requirements.txt
 huggingface-cli download arbazsiddiqui/voxlock model.safetensors config.yaml --local-dir ckpt
 python isolate.py --ckpt ckpt --in call.wav --out caller.wav
 ```
+
+## Quantized models
+
+The ONNX model comes in four precisions, all in the [Hugging Face repository](https://huggingface.co/arbazsiddiqui/voxlock/tree/main/onnx). Choose with `VoxLock(precision=...)`, `voxlock --precision ...` or `VoxLockFilter(precision=...)`.
+
+| Precision | Files | Download | Word error rate % | Background words leaked / min | Real-time factor, 40 ms chunks, 2 / 4 threads |
+|---|---|---|---|---|---|
+| `int8` (default) | `enroll.onnx`, `chunk_int8.onnx` | 75 MB | 5.11 | 0.12 | 0.89 / 0.69 |
+| `int8-full` | `enroll.onnx`, `chunk_int8_full.onnx` | 67 MB | 5.85 | 0.04 | 0.67 / 0.54 |
+| `fp16` | `enroll_fp16.onnx`, `chunk_fp16.onnx` | 48 MB | 4.95\* | 0.11\* | 1.31 / 1.00 |
+| `fp32` | `enroll.onnx`, `chunk.onnx` | 95 MB | 4.95 | 0.11 | 1.33 / 0.97 |
+
+Scores are on all 265 recordings of the Krisp benchmark above, so even the `int8` model is ahead of every other model in the table. The real-time factor is streaming on an Apple M2 Pro; below 1 keeps up with a live call. The 8-bit files are post-training dynamic quantization of the same weights: `int8` stores the LSTM weights in 8 bits, `int8-full` the LSTMs and the matrix multiplies. `int8-full` is the fastest: on one thread it keeps up with 80 ms chunks (0.80x real time on the Xeon server), where `int8` needs 160 ms chunks (0.73x).
+
+\* `fp16` is the float32 model with its weights rounded to float16. Its output matches float32 to 45 dB, so it carries the float32 scores. The browser demo uses it.
+
+`enroll` runs once on the voice sample, `chunk` runs on each chunk of the call and carries the LSTM state.
 
 ## Training
 
@@ -109,7 +152,9 @@ REAL-TSE tfmap_context_causal_100
 
 | Path | |
 |---|---|
-| `voxlock/` | the `pip install voxlock` package: whole files, streaming, command line |
+| `voxlock/` | the `pip install voxlock` package: whole files, streaming, command line, Pipecat filter |
+| `examples/` | a Pipecat voice agent with VoxLock |
+| `tests/` | the Pipecat filter test |
 | `isolate.py` | PyTorch inference |
 | `export_onnx.py` | ONNX export |
 | `demo/` | the browser demo (`python demo/serve.py`) |
