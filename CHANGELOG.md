@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+- `live()` and the Pipecat filter no longer stall when the caller talks without pausing.
+- Digital silence at the start of a call no longer puts line noise into the voice sample.
+
 ## 1.1.0
 
 - 8-bit models: `VoxLock(precision=...)` with `int8` (the new default), `int8-full`, `fp16` and `fp32`; `voxlock --precision`.

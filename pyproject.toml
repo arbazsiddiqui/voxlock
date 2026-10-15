@@ -1,6 +1,6 @@
 [project]
 name = "voxlock"
-version = "1.1.0"
+version = "1.1.1"
 description = "The best performing voice isolator there is: keeps the caller's voice and removes the other voices in the room. Streaming, CPU, ONNX."
 readme = "README.pypi.md"
 requires-python = ">=3.9"
