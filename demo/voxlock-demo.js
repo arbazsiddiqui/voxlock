@@ -186,12 +186,15 @@ function level(x, mask) {
   for (let i = 0; i < f.length; i++) if (mask[i]) { s += 10 ** (f[i] / 10); k++; }
   return [10 * Math.log10(s / Math.max(1, k) + 1e-12), mask];
 }
-// The caller's first `sec` seconds of speech (10 ms frames at least 12 dB above the quietest tenth), as VoxLock.live()
-// collects them: the voice sample, and the point after which the second talker joins.
+// The caller's first `sec` seconds of speech (10 ms frames at least 10 dB above the quietest frame of the last 2 s,
+// digital silence aside), as VoxLock.live() collects them: the voice sample, and the point after which the second
+// talker joins.
 function firstSpeech(x, sec = 3) {
-  const H = 160, f = frameDb(x, H), floor = [...f].sort((a, b) => a - b)[Math.floor(f.length * 0.1)] + 12, need = sec * SR / H;
-  const keep = [];
-  for (let i = 0; i < f.length && keep.length < need; i++) if (f[i] >= floor) keep.push(i);
+  const H = 160, f = frameDb(x, H), need = sec * SR / H, win = [], keep = [];
+  for (let i = 0; i < f.length && keep.length < need; i++) {
+    if (f[i] > -90) { win.push(f[i]); if (win.length > 200) win.shift(); }
+    if (win.length >= 20 && f[i] >= Math.min(...win) + 10) keep.push(i);
+  }
   if (keep.length < need / 2) return null;
   const sample = new Float32Array(keep.length * H);
   keep.forEach((i, k) => sample.set(x.subarray(i * H, i * H + H), k * H));
