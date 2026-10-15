@@ -2,6 +2,7 @@
 
 Streaming and file mode give the same output: only the LSTM state crosses frames, and it is carried over.
 """
+from collections import deque
 from pathlib import Path
 import numpy as np
 import onnxruntime as ort
@@ -138,16 +139,19 @@ class Stream:
 class LiveStream:
     """Pass-through until `sec` seconds of speech are heard, then a Stream locked to that speech.
 
-    Speech = 10 ms frames at least `margin` dB above the noise floor (the 10th percentile of frame energy so far).
+    Speech = 10 ms frames at least `margin` dB above the noise floor, the quietest frame of the last 2 s. A window
+    minimum keeps finding the gaps between words, so a caller who talks without pausing still fills the sample.
+    Digital silence (below -90 dBFS, e.g. before a microphone opens) is left out of the floor, or the line noise
+    after it would count as speech.
     At the switch the stream is first run over the last 250 ms of audio, whose output is dropped, so it does not start
     from an empty LSTM state, and the isolated audio fades in over 10 ms."""
 
-    WARM, FADE = 4000, 160
+    WARM, FADE, FLOOR = 4000, 160, 200
 
-    def __init__(self, vl, sec=3.0, margin=12.0):
+    def __init__(self, vl, sec=3.0, margin=10.0):
         self.vl, self.need, self.margin = vl, int(sec * SR / 160), margin
         self.stream = None
-        self.voiced, self.energy = [], []
+        self.voiced, self.energy = [], deque(maxlen=self.FLOOR)
         self.rest = np.zeros(0, np.float32)        # samples not yet in a whole 10 ms frame
         self.recent = np.zeros(0, np.float32)      # the last WARM input samples
         self.skip = 0                              # stream output samples still to drop (the warm-up)
@@ -180,13 +184,14 @@ class LiveStream:
         n = len(x) // 160
         for f in x[: n * 160].reshape(n, 160):
             e = 10 * np.log10((f ** 2).mean() + 1e-10)
-            self.energy.append(e)
-            if len(self.energy) >= 20 and e >= np.percentile(self.energy, 10) + self.margin:
+            if e > -90:
+                self.energy.append(e)
+            if len(self.energy) >= 20 and e >= min(self.energy) + self.margin:
                 self.voiced.append(f)
         self.rest = x[n * 160:]
         if len(self.voiced) >= self.need:
             self.stream = self.vl.stream(np.concatenate(self.voiced[: self.need]))
-            self.voiced, self.energy = [], []
+            self.voiced = []; self.energy.clear()
             self.skip = len(self.recent)
             self._isolated_warm(self.recent, frames_per_run)
         return chunk
