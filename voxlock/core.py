@@ -2,6 +2,7 @@
 
 Streaming and file mode give the same output: only the LSTM state crosses frames, and it is carried over.
 """
+import warnings
 from collections import deque
 from pathlib import Path
 import numpy as np
@@ -22,6 +23,15 @@ def loud_sample(mix, sec=3.0, within=15.0):
     e = (seg[: n * 160].reshape(n, 160) ** 2).mean(1)
     st = int(np.convolve(e, np.ones(w), "valid").argmax()) * 160
     return seg[st: st + int(sec * SR)]
+
+SAMPLE = 3 * SR   # the network takes a voice sample of exactly 3 s
+
+def fit_sample(sample):
+    """The voice sample as the network takes it: 3 s. A longer sample gives its loudest 3 s in the first 30 s."""
+    s = np.asarray(sample, np.float32)
+    if len(s) < SAMPLE:
+        raise ValueError(f"the voice sample must be at least 3 s long, got {len(s) / SR:.2f} s")
+    return s if len(s) == SAMPLE else loud_sample(s, within=30.0)[:SAMPLE]
 
 def load_audio(path):
     """Any file soundfile reads, as 16 kHz mono float32."""
@@ -65,17 +75,24 @@ class VoxLock:
         self.chunk = ort.InferenceSession(str(model_dir / f"{names[1]}.onnx"), so)
 
     def stream(self, sample):
-        """A live stream locked to the voice in `sample` (about 3 s of the caller, 16 kHz mono)."""
-        return Stream(self, np.asarray(sample, np.float32))
+        """A live stream locked to the voice in `sample` (16 kHz mono, at least 3 s of the caller; a longer sample
+        gives its loudest 3 s in the first 30 s)."""
+        return Stream(self, fit_sample(sample))
 
     def live(self, sec=3.0):
         """A live stream that finds the caller by itself: it passes audio through until it has heard `sec` seconds
-        of speech, takes those as the voice sample, and isolates from then on."""
+        of speech, takes those as the voice sample, and isolates from then on. `sec` must be at least 3."""
+        if sec < SAMPLE / SR:
+            raise ValueError(f"sec must be at least 3, got {sec}")
         return LiveStream(self, sec)
 
     def isolate(self, audio, sample=None):
-        """The whole call in, the caller out, same length. Without `sample`, uses loud_sample(audio)."""
+        """The whole call in, the caller out, same length. Without `sample`, uses loud_sample(audio); a call shorter
+        than 3 s has no voice sample to take, so it comes back unchanged."""
         audio = np.asarray(audio, np.float32)
+        if sample is None and len(audio) < SAMPLE:
+            warnings.warn("the call is shorter than 3 s, too short for a voice sample; returning it unchanged")
+            return audio.copy()
         s = self.stream(loud_sample(audio) if sample is None else sample)
         return np.concatenate([s.push(audio, frames_per_run=100), s.flush()])[: len(audio)]
 

@@ -47,9 +47,10 @@ class VoxLockFilter(BaseAudioFilter):
         """Initialize the VoxLock filter.
 
         Args:
-            voice_sample: About 3 seconds of the caller's voice, 16 kHz mono float32. When given, isolation starts
-                from the first audio frame.
-            sample_seconds: Seconds of speech to collect as the voice sample when `voice_sample` is not given.
+            voice_sample: At least 3 seconds of the caller's voice, 16 kHz mono float32; a longer sample gives its
+                loudest 3 s in the first 30 s. When given, isolation starts from the first audio frame.
+            sample_seconds: Seconds of speech to collect as the voice sample when `voice_sample` is not given, at
+                least 3.
             chunk_ms: Audio is run through the model in chunks of this length. With the int8 model, 80 ms runs in
                 real time on 2 server CPU threads and 40 ms on 4; larger chunks use less CPU and add latency.
             threads: onnxruntime threads for this filter.

@@ -71,7 +71,7 @@ call = voxlock.load_audio("call.wav")      # 16 kHz mono float32
 caller = vl.isolate(call)                  # same length as the input
 ```
 
-VoxLock keeps the voice in a 3-second sample of the caller. `isolate` takes the loudest 3 seconds in the first 15 seconds of the call, which is how it was benchmarked. Pass `sample=` to choose it yourself.
+VoxLock keeps the voice in a 3-second sample of the caller. `isolate` takes the loudest 3 seconds in the first 15 seconds of the call, which is how it was benchmarked. Pass `sample=` to choose it yourself: at least 3 seconds, and a longer sample gives its loudest 3 seconds in the first 30.
 
 ### Streaming
 
@@ -108,7 +108,7 @@ from voxlock.pipecat import VoxLockFilter
 params = TransportParams(audio_in_enabled=True, audio_in_filter=VoxLockFilter())
 ```
 
-The filter cleans the caller's audio before VAD and speech-to-text, at any transport sample rate (Twilio's 8 kHz included). Like `live()`, it passes audio through until it has heard 3 seconds of the caller; pass `voice_sample=` to isolate from the start. It runs the `int8` model in 80 ms chunks on 2 threads by default (`chunk_ms=`, `threads=`, `precision=`). With a single vCPU, such as Pipecat Cloud's `agent-2x`, use `VoxLockFilter(chunk_ms=160, threads=1)`: 0.73x real time on the Xeon server. Half a vCPU (`agent-1x`) is too little. A full voice agent: [examples/pipecat_bot.py](examples/pipecat_bot.py). Tested with Pipecat 1.12.0.
+The filter cleans the caller's audio before VAD and speech-to-text, at any transport sample rate (Twilio's 8 kHz included). Like `live()`, it passes audio through until it has heard 3 seconds of the caller; pass `voice_sample=` (at least 3 seconds) to isolate from the start. Defaults: `chunk_ms=80`, `threads=2`, `precision="int8"`. With a single vCPU, such as Pipecat Cloud's `agent-2x`, use `VoxLockFilter(chunk_ms=160, threads=1)`: 0.73x real time on the Xeon server. Half a vCPU (`agent-1x`) is too little. A full voice agent: [examples/pipecat_bot.py](examples/pipecat_bot.py). Tested with Pipecat 1.12.0.
 
 ### PyTorch
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+- A voice sample of any length from 3 seconds up works: a longer sample gives its loudest 3 seconds in the first 30. `stream()`, `isolate(sample=)` and the Pipecat filter's `voice_sample=` used to fail on anything but exactly 3 seconds.
+- `isolate()` returns a call shorter than 3 seconds unchanged, with a warning, instead of failing. A sample under 3 seconds, or `live(sec=)` under 3, is refused with a clear error.
+
 ## 1.1.1
 
 - `live()` and the Pipecat filter no longer stall when the caller talks without pausing.
