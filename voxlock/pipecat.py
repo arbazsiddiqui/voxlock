@@ -40,7 +40,7 @@ class VoxLockFilter(BaseAudioFilter):
         voice_sample: np.ndarray | None = None,
         sample_seconds: float = 3.0,
         chunk_ms: int = 80,
-        threads: int = 2,
+        threads: int = 1,
         model_dir: str | None = None,
         precision: str = "int8",
     ) -> None:
@@ -51,11 +51,11 @@ class VoxLockFilter(BaseAudioFilter):
                 loudest 3 s in the first 30 s. When given, isolation starts from the first audio frame.
             sample_seconds: Seconds of speech to collect as the voice sample when `voice_sample` is not given, at
                 least 3.
-            chunk_ms: Audio is run through the model in chunks of this length. With the int8 model, 80 ms runs in
-                real time on 2 server CPU threads and 40 ms on 4; larger chunks use less CPU and add latency.
+            chunk_ms: Audio is run through the model in chunks of this length. With the int8 model on one server CPU
+                thread, 80 ms takes 61% of the core and 40 ms 77%; larger chunks use less CPU and add latency.
             threads: onnxruntime threads for this filter.
-            model_dir: Folder with the ONNX files. None downloads them from Hugging Face on first use (75 MB).
-            precision: "int8", "int8-full" (fastest), "fp16" or "fp32" (the benchmarked model).
+            model_dir: Folder with the ONNX files. None downloads them from Hugging Face on first use (74 MB).
+            precision: "int8", "int8-full", "fp16" or "fp32" (the benchmarked model).
         """
         self._voice_sample = voice_sample
         self._sample_seconds = sample_seconds

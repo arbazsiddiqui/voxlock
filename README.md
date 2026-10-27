@@ -61,7 +61,7 @@ pip install voxlock
 voxlock call.wav -o caller.wav
 ```
 
-Any sample rate, mono or stereo. The model downloads from Hugging Face on first use: 75 MB, the 8-bit version (see [Quantized models](#quantized-models)).
+Any sample rate, mono or stereo. The model downloads from Hugging Face on first use: 74 MB, the 8-bit version (see [Quantized models](#quantized-models)).
 
 ```python
 import voxlock
@@ -78,7 +78,7 @@ VoxLock keeps the voice in a 3-second sample of the caller. `isolate` takes the 
 Push the call in as it arrives, as 16 kHz float32 chunks of any size. Each `push` returns the isolated audio that is ready, about 24 ms behind the input.
 
 ```python
-vl = voxlock.VoxLock(threads=4)
+vl = voxlock.VoxLock(threads=1)
 stream = vl.live()                         # finds the caller by itself
 for chunk in call_audio:                   # e.g. 40 ms = 640 samples
     send(stream.push(chunk))
@@ -93,7 +93,7 @@ If you already have a sample, from earlier in the call or from a previous call, 
 stream = vl.stream(sample)                 # about 3 s of the caller, 16 kHz mono
 ```
 
-Streaming gives the same output as `isolate` with the same sample. To keep up with a live call, push chunks of 40 ms or more: 40 ms chunks on 4 threads run at 0.69x real time on an Apple M2 Pro and 0.89x on an 8-vCPU Xeon server, and 80 ms chunks on 2 threads at 0.67x on the Xeon. Larger chunks use less CPU and add their length to the delay.
+Streaming gives the same output as `isolate` with the same sample. On one CPU thread it keeps up with chunks of 40 ms or more, and with 20 ms chunks on two threads (see [Performance](#performance)). Larger chunks use less CPU and add their length to the delay.
 
 ### Pipecat
 
@@ -108,7 +108,20 @@ from voxlock.pipecat import VoxLockFilter
 params = TransportParams(audio_in_enabled=True, audio_in_filter=VoxLockFilter())
 ```
 
-The filter cleans the caller's audio before VAD and speech-to-text, at any transport sample rate (Twilio's 8 kHz included). Like `live()`, it passes audio through until it has heard 3 seconds of the caller; pass `voice_sample=` (at least 3 seconds) to isolate from the start. Defaults: `chunk_ms=80`, `threads=2`, `precision="int8"`. With a single vCPU, such as Pipecat Cloud's `agent-2x`, use `VoxLockFilter(chunk_ms=160, threads=1)`: 0.73x real time on the Xeon server. Half a vCPU (`agent-1x`) is too little. A full voice agent: [examples/pipecat_bot.py](examples/pipecat_bot.py). Tested with Pipecat 1.12.0.
+The filter cleans the caller's audio before VAD and speech-to-text, at any transport sample rate (Twilio's 8 kHz included). Like `live()`, it passes audio through until it has heard 3 seconds of the caller; pass `voice_sample=` (at least 3 seconds) to isolate from the start. Defaults: `chunk_ms=80`, `threads=1`, `precision="int8"`, which takes 61% of one CPU core, so a single vCPU such as Pipecat Cloud's `agent-2x` runs it. Half a vCPU (`agent-1x`) is too little. A full voice agent: [examples/pipecat_bot.py](examples/pipecat_bot.py). Tested with Pipecat 1.12.0.
+
+### sherpa-onnx
+
+VoxLock is built into the speech denoisers of [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) from version 2.0.1, in C++ with no Python, for whole files and for streams. Download the models with sherpa-onnx's meta data from [this release](https://github.com/arbazsiddiqui/voxlock/releases/tag/sherpa-onnx-models), then:
+
+```bash
+sherpa-onnx-offline-denoiser \
+  --speech-denoiser-voxlock-enroll-model=voxlock_enroll.onnx \
+  --speech-denoiser-voxlock-chunk-model=voxlock_chunk_int8.onnx \
+  --input-wav=call.wav --output-wav=caller.wav
+```
+
+`sherpa-onnx-online-denoiser` takes the same models and streams. Both take the voice sample from the audio as this package does; `--speech-denoiser-voxlock-voice-sample=caller.wav` gives it instead.
 
 ### PyTorch
 
@@ -119,20 +132,32 @@ huggingface-cli download arbazsiddiqui/voxlock model.safetensors config.yaml --l
 python isolate.py --ckpt ckpt --in call.wav --out caller.wav
 ```
 
+## Performance
+
+One live call through `VoxLock.stream` with the default `int8` model on one CPU thread: onnxruntime 1.31.1 on a Google Cloud g2-standard-8 (Intel Xeon @ 2.20 GHz), 60 seconds of AMI meeting audio.
+
+| Chunk | CPU per call | Real-time factor |
+|---|---|---|
+| 20 ms | 110% of a core | 1.10 |
+| 40 ms | 77% of a core | 0.77 |
+| 80 ms | 61% of a core | 0.61 |
+
+Below 1 keeps up with the call. 20 ms chunks keep up on two threads (0.86). The model has 27M parameters and 24 ms of algorithmic latency, plus the chunk. On the same machine's NVIDIA L4 GPU (`fp32`, CUDA), a whole recording runs 40 times faster than real time.
+
 ## Quantized models
 
-The ONNX model comes in four precisions, all in the [Hugging Face repository](https://huggingface.co/arbazsiddiqui/voxlock/tree/main/onnx). Choose with `VoxLock(precision=...)`, `voxlock --precision ...` or `VoxLockFilter(precision=...)`.
+The ONNX model comes in four precisions, all in the [Hugging Face repository](https://huggingface.co/arbazsiddiqui/voxlock/tree/main/onnx/v2). Choose with `VoxLock(precision=...)`, `voxlock --precision ...` or `VoxLockFilter(precision=...)`.
 
-| Precision | Quality | Files | Download | Word error rate % | Background words leaked / min | Real-time factor, 40 ms chunks, 2 / 4 threads |
+| Precision | Quality | Files | Download | Word error rate % | Background words leaked / min | CPU per call, 20 ms chunks |
 |---|---|---|---|---|---|---|
-| `int8` (default) | 99.8% | `enroll.onnx`, `chunk_int8.onnx` | 75 MB | 5.11 | 0.12 | 0.89 / 0.69 |
-| `int8-full` | 99.1% | `enroll.onnx`, `chunk_int8_full.onnx` | 67 MB | 5.85 | 0.04 | 0.67 / 0.54 |
-| `fp16` | 100%\* | `enroll_fp16.onnx`, `chunk_fp16.onnx` | 48 MB | 4.95\* | 0.11\* | 1.31 / 1.00 |
-| `fp32` | 100% | `enroll.onnx`, `chunk.onnx` | 95 MB | 4.95 | 0.11 | 1.33 / 0.97 |
+| `int8` (default) | 99.8% | `enroll.onnx`, `chunk_int8.onnx` | 74 MB | 5.11 | 0.12 | 110% |
+| `int8-full` | 99.1% | `enroll.onnx`, `chunk_int8_full.onnx` | 71 MB | 5.85 | 0.04 | 110% |
+| `fp16` | 100%\* | `enroll_fp16.onnx`, `chunk_fp16.onnx` | 47 MB | 4.95\* | 0.11\* | 163% |
+| `fp32` | 100% | `enroll.onnx`, `chunk.onnx` | 94 MB | 4.95 | 0.11 | 165% |
 
-Quality: the share of `fp32`'s correctly transcribed words each precision keeps, on the 265 Krisp recordings. Real-time factor: streaming on an Apple M2 Pro; below 1 keeps up with a live call.
+Quality: the share of `fp32`'s correctly transcribed words each precision keeps, on the 265 Krisp recordings. CPU per call: one live call on one thread of the Xeon in [Performance](#performance).
 
-\* `fp16` is the float32 model with its weights rounded to float16. Its output matches float32 to 45 dB, so it carries the float32 scores. The browser demo uses it.
+\* `fp16` is the float32 model with its weights rounded to float16. Its output matches float32 to over 70 dB, so it carries the float32 scores. The browser demo uses it.
 
 `enroll` runs once on the voice sample, `chunk` runs on each chunk of the call and carries the LSTM state.
 

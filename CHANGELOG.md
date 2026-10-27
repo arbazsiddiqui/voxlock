@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+- Less CPU, same output. The enroll model now also computes the speaker attention's keys and values from the voice sample, once per call, instead of the chunk model recomputing them for every chunk. With `int8` on one CPU thread, 40 ms chunks take 77% of a core and 80 ms chunks 61%. The models are in `onnx/v2/` on Hugging Face; 1.1 installs keep downloading `onnx/`.
+- The Pipecat filter runs on one thread by default (`threads=1`), which fits a single vCPU.
+- `int8-full` keeps the attention in float, so it runs as fast as `int8`.
+
 ## 1.1.2
 
 - A voice sample of any length from 3 seconds up works: a longer sample gives its loudest 3 seconds in the first 30. `stream()`, `isolate(sample=)` and the Pipecat filter's `voice_sample=` used to fail on anything but exactly 3 seconds.

@@ -10,7 +10,7 @@ def main(argv=None):
     ap.add_argument("-o", "--out", help="output file (one input) or folder (several); default: <name>.voxlock.wav")
     ap.add_argument("--sample", help="a recording of the caller's voice; default: the loudest 3 s in the first 15 s")
     ap.add_argument("--precision", choices=["int8", "int8-full", "fp16", "fp32"], default="int8",
-                    help="model files: int8 (default), int8-full (fastest), fp16 or fp32 (the benchmarked model)")
+                    help="model files: int8 (default), int8-full, fp16 or fp32 (the benchmarked model)")
     ap.add_argument("--fp32", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--threads", type=int, default=0)
     a = ap.parse_args(argv)
