@@ -55,7 +55,7 @@ async function isolate(mix, sample) {
   const t0 = performance.now();
   const enr = sample || loudSample(mix);
   const eo = await enrollSess.run({ enroll: new ort.Tensor("float32", enr, [1, enr.length]) });
-  const mag = eo.enroll_mag, ctx = eo.context;
+  const voice = { enroll_n: eo.enroll_n, k: eo.k, v: eo.v };
   const x = reflectPad(mix, 256);
   const nfr = 1 + Math.floor((x.length - NFFT) / HOP);
   const out = new Float32Array((nfr - 1) * HOP + NFFT), env = new Float32Array(out.length);
@@ -66,7 +66,7 @@ async function isolate(mix, sample) {
   for (let f0 = 0; f0 < nfr; f0 += K) {
     const k = Math.min(K, nfr - f0);
     const seg = x.slice(f0 * HOP, (f0 + k - 1) * HOP + NFFT);
-    const r = await chunkSess.run({ wav: new ort.Tensor("float32", seg, [1, seg.length]), enroll_mag: mag, context: ctx, h, c });
+    const r = await chunkSess.run({ wav: new ort.Tensor("float32", seg, [1, seg.length]), ...voice, h, c });
     const fr = r.frames.data;
     for (let j = 0; j < k; j++) {
       const s = (f0 + j) * HOP;
@@ -91,7 +91,7 @@ onmessage = async ({ data }) => {
         postMessage({ type: "download", got: g, total: data.totalBytes }); };
       // Hugging Face counts a download when config.yaml is fetched (its default query file), so a browser run counts
       // the way transformers.js's config.json fetch does for other models.
-      if (data.base.includes("huggingface.co")) fetch(new URL("../config.yaml", data.base)).catch(() => {});
+      if (data.base.includes("huggingface.co")) fetch(new URL("../../config.yaml", data.base)).catch(() => {});
       const [eb, cb] = await Promise.all([fetchCached(data.base + "enroll_fp16.onnx", prog("e")), fetchCached(data.base + "chunk_fp16.onnx", prog("c"))]);
       const opt = { executionProviders: ["wasm"], graphOptimizationLevel: "all" };
       enrollSess = await ort.InferenceSession.create(eb, opt);

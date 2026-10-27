@@ -1,7 +1,7 @@
 // VoxLock demo widget: synced on/off playback of precomputed clips, and record -> isolate in a worker.
 // Mounts into <div id="voxlock-demo">; every asset is loaded relative to this file.
-const SR = 16000, MODEL_BYTES = 50598514, MAX_REC_S = 15, MAX_UPLOAD_S = 60;
-const HF_BASE = "https://huggingface.co/arbazsiddiqui/voxlock/resolve/main/onnx/";
+const SR = 16000, MODEL_BYTES = 49841922, MAX_REC_S = 15, MAX_UPLOAD_S = 60;
+const HF_BASE = "https://huggingface.co/arbazsiddiqui/voxlock/resolve/main/onnx/v2/";
 const MODEL_BASE = new URLSearchParams(location.search).get("models") || HF_BASE;
 const asset = (p) => new URL(p, import.meta.url).href;
 function mount(root) {

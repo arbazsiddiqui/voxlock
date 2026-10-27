@@ -9,3 +9,4 @@ wespeaker @ git+https://github.com/wenet-e2e/wespeaker.git@8f53b6485d9f88a207bd1
 onnx
 onnxruntime
 safetensors
+onnxsim

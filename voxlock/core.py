@@ -9,7 +9,7 @@ import numpy as np
 import onnxruntime as ort
 
 SR, HOP, NFFT, PAD = 16000, 128, 512, 256
-REPO, REVISION = "arbazsiddiqui/voxlock", "a50f4e1d109301d4b6f61dec57ebb1a61e7d8f03"
+REPO, REVISION = "arbazsiddiqui/voxlock", "2413b292bc2c337bfc19a9802aaf3e011e68e9c4"
 WIN2 = (0.5 - 0.5 * np.cos(2 * np.pi * np.arange(NFFT) / NFFT)).astype(np.float32) ** 2
 GAIN = -0.5   # the network returns the caller at about -2x (trained with a scale-invariant loss); this restores the input level
 
@@ -40,7 +40,7 @@ def load_audio(path):
     x = x.mean(1)
     return (soxr.resample(x, sr, SR) if sr != SR else x).astype(np.float32)
 
-PRECISIONS = {                             # name: (enroll file, chunk file) in onnx/
+PRECISIONS = {                             # name: (enroll file, chunk file) in onnx/v2/
     "int8": ("enroll", "chunk_int8"),         # LSTMs in 8-bit
     "int8-full": ("enroll", "chunk_int8_full"),  # LSTMs and matrix multiplies in 8-bit
     "fp16": ("enroll_fp16", "chunk_fp16"),    # float16 weights
@@ -52,13 +52,13 @@ def download(precision="int8"):
     from huggingface_hub import hf_hub_download
     hf_hub_download(REPO, "config.yaml", revision=REVISION)
     for name in PRECISIONS[precision]:
-        path = hf_hub_download(REPO, f"onnx/{name}.onnx", revision=REVISION)
+        path = hf_hub_download(REPO, f"onnx/v2/{name}.onnx", revision=REVISION)
     return Path(path).parent
 
 class VoxLock:
     def __init__(self, model_dir=None, precision="int8", threads=0, fp16=None):
         """model_dir: a folder with the ONNX files; None downloads them from Hugging Face.
-        precision: "int8" (75 MB), "int8-full" (67 MB, fastest), "fp16" (48 MB) or "fp32" (95 MB); see PRECISIONS.
+        precision: "int8" (74 MB), "int8-full" (71 MB), "fp16" (47 MB) or "fp32" (94 MB); see PRECISIONS.
         threads=0 lets onnxruntime choose. fp16=True/False is the 1.0 spelling of precision="fp16"/"fp32"."""
         if fp16 is not None:
             precision = "fp16" if fp16 else "fp32"
@@ -68,11 +68,18 @@ class VoxLock:
         so = ort.SessionOptions()
         if threads:
             so.intra_op_num_threads = threads
+        if threads != 1:
+            so.add_session_config_entry("session.intra_op.allow_spinning", "0")   # idle threads sleep instead of spinning
         names = PRECISIONS[precision]
         if not (model_dir / f"{names[1]}.onnx").exists():
             names = ("enroll", "chunk")
         self.enroll = ort.InferenceSession(str(model_dir / f"{names[0]}.onnx"), so)
         self.chunk = ort.InferenceSession(str(model_dir / f"{names[1]}.onnx"), so)
+        inputs = {i.name: i.shape for i in self.chunk.get_inputs()}
+        if "context" in inputs:
+            raise ValueError(f"{model_dir} holds VoxLock 1.1 model files; use voxlock<1.2 with them, or let this "
+                             "version download its own (model_dir=None)")
+        self.state = tuple(inputs["h"])
 
     def stream(self, sample):
         """A live stream locked to the voice in `sample` (16 kHz mono, at least 3 s of the caller; a longer sample
@@ -99,8 +106,8 @@ class VoxLock:
 class Stream:
     def __init__(self, vl, sample):
         self.vl = vl
-        self.mag, self.ctx = vl.enroll.run(None, {"enroll": sample[None]})
-        self.h = np.zeros((6, 32, 256), np.float32); self.c = np.zeros_like(self.h)
+        self.voice = dict(zip(("enroll_n", "k", "v"), vl.enroll.run(None, {"enroll": sample[None]})))
+        self.h = np.zeros(vl.state, np.float32); self.c = np.zeros_like(self.h)
         self.head = np.zeros(0, np.float32)        # first samples, until the start padding can be built
         self.buf = None                            # padded input not yet consumed by a frame
         self.ola = np.zeros(NFFT, np.float32); self.env = np.zeros(NFFT, np.float32)
@@ -112,8 +119,7 @@ class Stream:
         while self.buf is not None and len(self.buf) >= NFFT:
             k = min(frames_per_run, 1 + (len(self.buf) - NFFT) // HOP)
             seg = self.buf[: (k - 1) * HOP + NFFT]
-            fr, self.h, self.c = self.vl.chunk.run(None, {"wav": seg[None], "enroll_mag": self.mag, "context": self.ctx,
-                                                          "h": self.h, "c": self.c})
+            fr, self.h, self.c = self.vl.chunk.run(None, {"wav": seg[None], **self.voice, "h": self.h, "c": self.c})
             ola = np.concatenate([self.ola, np.zeros(k * HOP, np.float32)])
             env = np.concatenate([self.env, np.zeros(k * HOP, np.float32)])
             for j in range(k):
