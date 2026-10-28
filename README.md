@@ -85,7 +85,7 @@ for chunk in call_audio:                   # e.g. 40 ms = 640 samples
 send(stream.flush())                       # at the end of the call
 ```
 
-`live()` passes the audio through unchanged until it has heard 3 seconds of speech, takes that speech as the voice sample and isolates from then on. On our test calls it switched over a median of 3.6 seconds in.
+`live()` passes the audio through unchanged until it has heard 3 seconds of speech, takes that speech as the voice sample and isolates from then on. On our test calls it switched over a median of 3.6 seconds in. At the switch it first runs the model over the call so far (up to 30 seconds), so the model never starts cold in the middle of a sentence; that is a one-time 2 to 5 seconds of work on one CPU thread. On the 265 Krisp recordings `live()` scores 5.15% word error rate with the `fp32` model, against 4.95% on the whole file.
 
 If you already have a sample, from earlier in the call or from a previous call, isolation starts with the first chunk:
 
@@ -93,7 +93,7 @@ If you already have a sample, from earlier in the call or from a previous call, 
 stream = vl.stream(sample)                 # about 3 s of the caller, 16 kHz mono
 ```
 
-Streaming gives the same output as `isolate` with the same sample. On one CPU thread it keeps up with chunks of 40 ms or more, and with 20 ms chunks on two threads (see [Performance](#performance)). Larger chunks use less CPU and add their length to the delay.
+Streaming gives the same output as `isolate` with the same sample, to float rounding with `fp32`; `int8` differs slightly, since its 8-bit scaling depends on the chunk size. On one CPU thread it keeps up with chunks of 40 ms or more, and with 20 ms chunks on two threads (see [Performance](#performance)). Larger chunks use less CPU and add their length to the delay.
 
 ### Pipecat
 

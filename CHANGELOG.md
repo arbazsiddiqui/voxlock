@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+- `live()` and the Pipecat filter no longer mute the caller on some calls. At the switch from pass-through to isolation they started the model on only the last 250 ms of audio; started cold in the middle of a sentence, the model could take the caller for background and keep them muted for the rest of the call (3 of the 63 Krisp phone calls). They now run the model over the call so far (up to 30 seconds) first. On the 265 Krisp recordings `live()` goes from 5.41% to 5.15% word error rate (4.95% on whole files), and on the phone calls from 8.02% to 6.07%. The catch-up is a one-time 2 to 5 seconds of work on one CPU thread at the switch. Same models.
+- A stream's `flush()` no longer returns samples past the end of the input. They were the end padding divided by a near-zero window, and could be loud: a click at the end of the call. `isolate()` and the Pipecat filter were not affected.
+
 ## 1.2.0
 
 - Less CPU, same output. The enroll model now also computes the speaker attention's keys and values from the voice sample, once per call, instead of the chunk model recomputing them for every chunk. With `int8` on one CPU thread, 40 ms chunks take 77% of a core and 80 ms chunks 61%. The models are in `onnx/v2/` on Hugging Face; 1.1 installs keep downloading `onnx/`.
