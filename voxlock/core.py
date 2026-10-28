@@ -112,7 +112,7 @@ class Stream:
         self.buf = None                            # padded input not yet consumed by a frame
         self.ola = np.zeros(NFFT, np.float32); self.env = np.zeros(NFFT, np.float32)
         self.dropped = 0                           # leading padded samples still to drop from the output
-        self.n_in = 0
+        self.n_in = self.n_out = 0
 
     def _run(self, frames_per_run):
         out = []
@@ -144,7 +144,9 @@ class Stream:
             self.dropped = PAD
         else:
             self.buf = np.concatenate([self.buf, chunk])
-        return self._run(frames_per_run)
+        y = self._run(frames_per_run)
+        self.n_out += len(y)
+        return y
 
     def flush(self):
         """End of the call: returns the last samples still held back."""
@@ -156,6 +158,8 @@ class Stream:
         self.buf = x
         y = self._run(100)
         y = np.concatenate([y, self.ola / np.where(self.env > 1e-11, self.env, 1.0) * GAIN])
+        y = y[: max(0, self.n_in - self.n_out)]   # past the input there is only padding, under a near-zero window
+        self.n_out += len(y)
         self.buf = None
         return y
 
@@ -166,17 +170,18 @@ class LiveStream:
     minimum keeps finding the gaps between words, so a caller who talks without pausing still fills the sample.
     Digital silence (below -90 dBFS, e.g. before a microphone opens) is left out of the floor, or the line noise
     after it would count as speech.
-    At the switch the stream is first run over the last 250 ms of audio, whose output is dropped, so it does not start
-    from an empty LSTM state, and the isolated audio fades in over 10 ms."""
+    At the switch the stream is first run over the call so far (up to 30 s), whose output is dropped, and the isolated
+    audio fades in over 10 ms. A stream started mid-speech from an empty LSTM state can take the caller for
+    background and keep them muted for the rest of the call; one that has heard the call from its start does not."""
 
-    WARM, FADE, FLOOR = 4000, 160, 200
+    WARM, FADE, FLOOR = 30 * SR, 160, 200
 
     def __init__(self, vl, sec=3.0, margin=10.0):
         self.vl, self.need, self.margin = vl, int(sec * SR / 160), margin
         self.stream = None
         self.voiced, self.energy = [], deque(maxlen=self.FLOOR)
         self.rest = np.zeros(0, np.float32)        # samples not yet in a whole 10 ms frame
-        self.recent = np.zeros(0, np.float32)      # the last WARM input samples
+        self.recent, self.n_recent = [], 0         # input chunks so far, trimmed to about the last WARM samples
         self.skip = 0                              # stream output samples still to drop (the warm-up)
         self.after = np.zeros(0, np.float32)       # input since the switch, for the fade-in
         self.faded = 0
@@ -188,7 +193,9 @@ class LiveStream:
     def _isolated(self, chunk, frames_per_run):
         if self.faded < self.FADE:
             self.after = np.concatenate([self.after, chunk])
-        y = self.stream.push(chunk, frames_per_run)
+        return self._out(self.stream.push(chunk, frames_per_run))
+
+    def _out(self, y):
         cut = min(self.skip, len(y)); self.skip -= cut; y = y[cut:]
         if self.faded < self.FADE and len(y):
             n = min(len(y), self.FADE - self.faded)
@@ -202,7 +209,9 @@ class LiveStream:
         chunk = np.asarray(chunk, np.float32)
         if self.stream is not None:
             return self._isolated(chunk, frames_per_run)
-        self.recent = np.concatenate([self.recent, chunk])[-self.WARM:]
+        self.recent.append(chunk); self.n_recent += len(chunk)
+        while self.n_recent - len(self.recent[0]) >= self.WARM:
+            self.n_recent -= len(self.recent.pop(0))
         x = np.concatenate([self.rest, chunk])
         n = len(x) // 160
         for f in x[: n * 160].reshape(n, 160):
@@ -215,8 +224,10 @@ class LiveStream:
         if len(self.voiced) >= self.need:
             self.stream = self.vl.stream(np.concatenate(self.voiced[: self.need]))
             self.voiced = []; self.energy.clear()
-            self.skip = len(self.recent)
-            self._isolated_warm(self.recent, frames_per_run)
+            warm = np.concatenate(self.recent)[-self.WARM:]
+            self.recent, self.n_recent = [], 0
+            self.skip = len(warm)
+            self._isolated_warm(warm, frames_per_run)
         return chunk
 
     def _isolated_warm(self, warm, frames_per_run):
@@ -224,4 +235,4 @@ class LiveStream:
         cut = min(self.skip, len(y)); self.skip -= cut
 
     def flush(self):
-        return self.stream.flush() if self.stream is not None else np.zeros(0, np.float32)
+        return self._out(self.stream.flush()) if self.stream is not None else np.zeros(0, np.float32)
