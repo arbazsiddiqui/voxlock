@@ -1,6 +1,11 @@
 VoxLock
 Copyright 2026 Arbaz Siddiqui
 
+The VoxLock model weights are fine-tuned from the REAL-TSE tfmap_context_causal_100 baseline checkpoint, trained by
+Ke Zhang and released through the REAL-TSE WeSep project (https://github.com/REAL-TSE/wesep-real-tse). Ke Zhang has
+confirmed that the inference code he wrote and the parameters he trained are available under Apache-2.0. This
+notice is attribution only and does not imply endorsement by the REAL-TSE organizers.
+
 wesep/ is the WeSep model code from the REAL-TSE challenge baseline (https://github.com/REAL-TSE/wesep-real-tse),
 Apache-2.0 per its source headers, used unchanged.
 
