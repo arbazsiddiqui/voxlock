@@ -1,6 +1,6 @@
 # VoxLock
 
-**The best performing voice isolator there is.** VoxLock is an open-source voice isolation model: it keeps the caller's voice and removes the other voices in the room before speech-to-text hears them. Made for voice agents and phone calls: one input, the call audio, and it picks out the caller by itself. It streams on a CPU with 24 ms of algorithmic latency.
+**The best performing voice isolator there is.** VoxLock is an open-source voice isolation model: it keeps the caller's voice and removes the other voices in the room before speech-to-text hears them. Made for voice agents and phone calls: one input, the call audio, and it picks out the caller by itself. It streams on a CPU with 24 ms of algorithmic latency, and plugs into [Pipecat](#pipecat) and [LiveKit](#livekit) voice agents.
 
 **[Write-up](https://arbazsiddiqui.me/voxlock)** · **[Model on Hugging Face](https://huggingface.co/arbazsiddiqui/voxlock)** · **[Try it in your browser](https://huggingface.co/spaces/arbazsiddiqui/voxlock)**
 
@@ -58,6 +58,8 @@ On real AMI meetings not used in training, with the headset wearer as the caller
 Caller words missed, deletions, insertions and 95% intervals: [bench/results](bench/results).
 
 ## Use
+
+For voice agents: a [Pipecat](#pipecat) audio filter, a [LiveKit](#livekit) Agents plugin, and [sherpa-onnx](#sherpa-onnx) in C++. For files and your own streaming loop, read on.
 
 ```bash
 pip install voxlock
