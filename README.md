@@ -138,7 +138,7 @@ One filter per session. Passes audio through until it has heard 3 seconds of the
 
 ### sherpa-onnx
 
-VoxLock is built into the speech denoisers of [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) from version 2.0.1, in C++ with no Python, for whole files and for streams. Download the models with sherpa-onnx's meta data from [this release](https://github.com/arbazsiddiqui/voxlock/releases/tag/sherpa-onnx-models), then:
+Built into [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)'s speech denoisers from 2.0.1, in C++. Models from [this release](https://github.com/arbazsiddiqui/voxlock/releases/tag/sherpa-onnx-models), then:
 
 ```bash
 sherpa-onnx-offline-denoiser \
@@ -147,7 +147,7 @@ sherpa-onnx-offline-denoiser \
   --input-wav=call.wav --output-wav=caller.wav
 ```
 
-`sherpa-onnx-online-denoiser` takes the same models and streams. Both take the voice sample from the audio as this package does; `--speech-denoiser-voxlock-voice-sample=caller.wav` gives it instead.
+`sherpa-onnx-online-denoiser` streams with the same models; `--speech-denoiser-voxlock-voice-sample=caller.wav` sets the voice sample.
 
 ### PyTorch
 
@@ -183,9 +183,7 @@ The ONNX model comes in four precisions, all in the [Hugging Face repository](ht
 
 Quality: the share of `fp32`'s correctly transcribed words each precision keeps, on the 265 Krisp recordings. CPU per call: one live call on one thread of the Xeon in [Performance](#performance).
 
-\* `fp16` is the float32 model with its weights rounded to float16. Its output matches float32 to over 70 dB, so it carries the float32 scores. The browser demo uses it.
-
-`enroll` runs once on the voice sample, `chunk` runs on each chunk of the call and carries the LSTM state.
+\* `fp16` matches `fp32` to over 70 dB, so it carries the `fp32` scores. The browser demo uses it.
 
 ## Training
 
