@@ -1,10 +1,21 @@
-"""voxlock call.wav -o caller.wav"""
+"""voxlock call.wav -o caller.wav, or voxlock download to fetch the model files ahead of time"""
 import argparse, sys, time
 from pathlib import Path
 import soundfile as sf
-from . import SR, VoxLock, load_audio
+from . import SR, VoxLock, download, load_audio
+from .core import PRECISIONS
+
+def fetch(argv):
+    ap = argparse.ArgumentParser(prog="voxlock download", description="Fetch the model files into the Hugging Face cache, "
+                                 "e.g. while building a Docker image, so the first call does not wait for them.")
+    ap.add_argument("--precision", choices=list(PRECISIONS), default="int8")
+    a = ap.parse_args(argv)
+    print(download(a.precision))
 
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["download"]:
+        return fetch(argv[1:])
     ap = argparse.ArgumentParser(prog="voxlock", description="Keep the caller's voice, remove the other voices in the room.")
     ap.add_argument("inputs", nargs="+", help="audio files, any sample rate")
     ap.add_argument("-o", "--out", help="output file (one input) or folder (several); default: <name>.voxlock.wav")

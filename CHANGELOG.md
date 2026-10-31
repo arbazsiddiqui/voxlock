@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+- A LiveKit Agents plugin: `voxlock.livekit.VoxLockFilter`, a frame processor for `room_io.AudioInputOptions(noise_cancellation=...)` (`pip install "voxlock[livekit]"`, or `pip install livekit-plugins-voxlock` for `from livekit.plugins import voxlock`). The model runs on its own thread, so the agent's event loop spends about 0.3 ms per frame on it; each frame comes back whole, 124 ms behind in a 16 kHz session. The caller keeps their voice lock across a track change, pre-connect audio passes through unchanged, and `download-files` fetches the model. Tested end to end through a LiveKit server, in an `rtc.AudioStream` and in an `AgentSession`.
+- The Pipecat filter no longer holds up the call's audio when it locks onto the caller. The one-time catch-up at the switch ran on the transport's audio loop, which waits for the filter: on a server CPU, speech-to-text and VAD heard nothing for up to 2.5 seconds, in the middle of the caller's first sentence, and the next 4 to 6 seconds arrived late. The model now runs on its own thread and every frame comes back at once, whole, a fixed delay behind (184 ms with the default 80 ms chunks at 16 kHz); a stretch the model has not finished goes out unprocessed. Same CPU, same output once caught up.
+- `voxlock download` fetches the model files ahead of time, e.g. while building a Docker image.
+- Same models.
+
 ## 1.2.1
 
 - `live()` and the Pipecat filter no longer mute the caller on some calls. At the switch from pass-through to isolation they started the model on only the last 250 ms of audio; started cold in the middle of a sentence, the model could take the caller for background and keep them muted for the rest of the call (3 of the 63 Krisp phone calls). They now run the model over the call so far (up to 30 seconds) first. On the 265 Krisp recordings `live()` goes from 5.41% to 5.15% word error rate (4.95% on whole files), and on the phone calls from 8.02% to 6.07%. The catch-up is a one-time 2 to 5 seconds of work on one CPU thread at the switch. Same models.

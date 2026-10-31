@@ -9,6 +9,9 @@
   <a href="https://huggingface.co/arbazsiddiqui/voxlock"><img alt="Hugging Face" src="https://img.shields.io/badge/%F0%9F%A4%97%20model-voxlock-yellow"></a>
   <a href="#results"><img alt="Krisp benchmark WER 4.95%" src="https://img.shields.io/badge/Krisp%20benchmark%20WER-4.95%25-brightgreen"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
+  <a href="#livekit"><img alt="LiveKit Agents plugin" src="https://img.shields.io/badge/LiveKit%20Agents-plugin-1fd5f9"></a>
+  <a href="#pipecat"><img alt="Pipecat filter" src="https://img.shields.io/badge/Pipecat-filter-6b48ff"></a>
+  <a href="https://github.com/arbazsiddiqui/voxlock/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/arbazsiddiqui/voxlock/actions/workflows/tests.yml/badge.svg"></a>
 </p>
 
 https://github.com/user-attachments/assets/d32cf251-b461-4a91-93b1-21a8bd6ad840
@@ -61,7 +64,7 @@ pip install voxlock
 voxlock call.wav -o caller.wav
 ```
 
-Any sample rate, mono or stereo. The model downloads from Hugging Face on first use: 74 MB, the 8-bit version (see [Quantized models](#quantized-models)).
+Any sample rate, mono or stereo. The model downloads from Hugging Face on first use: 74 MB, the 8-bit version (see [Quantized models](#quantized-models)). `voxlock download` fetches it ahead of time, e.g. while building a Docker image.
 
 ```python
 import voxlock
@@ -85,7 +88,7 @@ for chunk in call_audio:                   # e.g. 40 ms = 640 samples
 send(stream.flush())                       # at the end of the call
 ```
 
-`live()` passes the audio through unchanged until it has heard 3 seconds of speech, takes that speech as the voice sample and isolates from then on. On our test calls it switched over a median of 3.6 seconds in. At the switch it first runs the model over the call so far (up to 30 seconds), so the model never starts cold in the middle of a sentence; that is a one-time 2 to 5 seconds of work on one CPU thread. On the 265 Krisp recordings `live()` scores 5.15% word error rate with the `fp32` model, against 4.95% on the whole file.
+`live()` passes the audio through unchanged until it has heard 3 seconds of speech, takes that speech as the voice sample and isolates from then on. On our test calls it switched over a median of 3.6 seconds in. At the switch it first runs the model over the call so far (up to 30 seconds), so the model never starts cold in the middle of a sentence; that is a one-time 2 to 5 seconds of work on one CPU thread. On the 265 Krisp recordings `live()` scores 5.15% word error rate with the `fp32` model, against 4.95% on the whole file. The Pipecat and LiveKit filters do that work on their own thread, so the call's audio never waits for it: it goes out unprocessed for the few seconds the model takes to catch up.
 
 If you already have a sample, from earlier in the call or from a previous call, isolation starts with the first chunk:
 
@@ -108,7 +111,34 @@ from voxlock.pipecat import VoxLockFilter
 params = TransportParams(audio_in_enabled=True, audio_in_filter=VoxLockFilter())
 ```
 
-The filter cleans the caller's audio before VAD and speech-to-text, at any transport sample rate (Twilio's 8 kHz included). Like `live()`, it passes audio through until it has heard 3 seconds of the caller; pass `voice_sample=` (at least 3 seconds) to isolate from the start. Defaults: `chunk_ms=80`, `threads=1`, `precision="int8"`, which takes 61% of one CPU core, so a single vCPU such as Pipecat Cloud's `agent-2x` runs it. Half a vCPU (`agent-1x`) is too little. A full voice agent: [examples/pipecat_bot.py](examples/pipecat_bot.py). Tested with Pipecat 1.12.0.
+The filter cleans the caller's audio before VAD and speech-to-text, at any transport sample rate (Twilio's 8 kHz included). Like `live()`, it passes audio through until it has heard 3 seconds of the caller; pass `voice_sample=` (at least 3 seconds) to isolate from the start. Defaults: `chunk_ms=80`, `threads=1`, `precision="int8"`, which takes 61% of one CPU core, so a single vCPU such as Pipecat Cloud's `agent-2x` runs it. Half a vCPU (`agent-1x`) is too little.
+
+The model runs on its own thread, so the transport never waits for it. Each frame comes back whole, a fixed delay behind: two chunks plus 24 ms, 184 ms at 16 kHz (resampling adds 39 ms at 48 kHz and 120 ms at Twilio's 8 kHz). `chunk_ms=40` makes it 104 ms for 77% of a core. A full voice agent: [examples/pipecat_bot.py](examples/pipecat_bot.py). Tested with Pipecat 1.15.0.
+
+### LiveKit
+
+```bash
+pip install "voxlock[livekit]"            # or: pip install livekit-plugins-voxlock
+```
+
+```python
+from livekit.agents import room_io
+from voxlock.livekit import VoxLockFilter   # or: from livekit.plugins import voxlock; voxlock.VoxLockFilter()
+
+await session.start(
+    agent,
+    room=ctx.room,
+    room_options=room_io.RoomOptions(
+        audio_input=room_io.AudioInputOptions(sample_rate=16000, noise_cancellation=VoxLockFilter()),
+    ),
+)
+```
+
+`VoxLockFilter` is a LiveKit frame processor, one per session. It cleans the caller's audio before VAD, turn detection and speech-to-text. Like `live()`, it passes audio through until it has heard 3 seconds of the caller (`voice_sample=` isolates from the start), and the caller keeps their voice lock when their track changes, e.g. a microphone toggle; a different participant starts over.
+
+The model runs on its own thread: the agent's event loop spends about 0.3 ms per frame on it, and the call takes 67% to 69% of one CPU core with LiveKit's 50 ms frames (60 s of Krisp recordings on the Xeon in [Performance](#performance), [bench/livekit_cpu.py](bench/livekit_cpu.py)). Each frame comes back whole, a fixed delay behind: two frames plus 24 ms, 124 ms in a 16 kHz session (a 24 or 48 kHz session adds up to 39 ms of resampling). Audio the caller recorded before the agent joined (pre-connect audio) passes through unchanged.
+
+Load the model once per worker process with `preload()` in your prewarm function, and fetch it at build time with `python agent.py download-files` or `voxlock download`. In `console` mode LiveKit reads the microphone without a room, so the filter does not run there: test it in a room. A full voice agent: [examples/livekit_agent.py](examples/livekit_agent.py). Tested with livekit-agents 1.8.10, end to end through a LiveKit server: the other voice 45 to 49 dB down in what the agent hears.
 
 ### sherpa-onnx
 
@@ -177,9 +207,10 @@ REAL-TSE tfmap_context_causal_100
 
 | Path | |
 |---|---|
-| `voxlock/` | the `pip install voxlock` package: whole files, streaming, command line, Pipecat filter |
-| `examples/` | a Pipecat voice agent with VoxLock |
-| `tests/` | the Pipecat filter test |
+| `voxlock/` | the `pip install voxlock` package: whole files, streaming, command line, Pipecat and LiveKit filters |
+| `integrations/` | `livekit-plugins-voxlock`, the LiveKit plugin package |
+| `examples/` | Pipecat and LiveKit voice agents with VoxLock |
+| `tests/` | unit tests, and the Pipecat and LiveKit filters run as each framework runs them |
 | `isolate.py` | PyTorch inference |
 | `export_onnx.py` | ONNX export |
 | `demo/` | the browser demo (`python demo/serve.py`) |
