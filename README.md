@@ -66,7 +66,7 @@ pip install voxlock
 voxlock call.wav -o caller.wav
 ```
 
-Any sample rate, mono or stereo. The model downloads from Hugging Face on first use: 74 MB, the 8-bit version (see [Quantized models](#quantized-models)). `voxlock download` fetches it ahead of time, e.g. while building a Docker image.
+Any sample rate, mono or stereo. The 74 MB model downloads on first use, or ahead of time with `voxlock download`.
 
 ```python
 import voxlock
@@ -76,7 +76,7 @@ call = voxlock.load_audio("call.wav")      # 16 kHz mono float32
 caller = vl.isolate(call)                  # same length as the input
 ```
 
-VoxLock keeps the voice in a 3-second sample of the caller. `isolate` takes the loudest 3 seconds in the first 15 seconds of the call, which is how it was benchmarked. Pass `sample=` to choose it yourself: at least 3 seconds, and a longer sample gives its loudest 3 seconds in the first 30.
+`isolate` takes the caller's voice sample from the first 15 seconds of the call. Pass `sample=` (3 seconds or more) to choose it yourself.
 
 ### Streaming
 
@@ -90,7 +90,7 @@ for chunk in call_audio:                   # e.g. 40 ms = 640 samples
 send(stream.flush())                       # at the end of the call
 ```
 
-`live()` passes the audio through unchanged until it has heard 3 seconds of speech, takes that speech as the voice sample and isolates from then on. On our test calls it switched over a median of 3.6 seconds in. At the switch it first runs the model over the call so far (up to 30 seconds), so the model never starts cold in the middle of a sentence; that is a one-time 2 to 5 seconds of work on one CPU thread. On the 265 Krisp recordings `live()` scores 5.15% word error rate with the `fp32` model, against 4.95% on the whole file.
+`live()` passes audio through until it has heard 3 seconds of the caller, then isolates. On the 265 Krisp recordings it scores 5.15% word error rate (4.95% on whole files).
 
 If you already have a sample, from earlier in the call or from a previous call, isolation starts with the first chunk:
 
@@ -98,7 +98,7 @@ If you already have a sample, from earlier in the call or from a previous call, 
 stream = vl.stream(sample)                 # about 3 s of the caller, 16 kHz mono
 ```
 
-Streaming gives the same output as `isolate` with the same sample, to float rounding with `fp32`; `int8` differs slightly, since its 8-bit scaling depends on the chunk size. On one CPU thread it keeps up with chunks of 40 ms or more, and with 20 ms chunks on two threads (see [Performance](#performance)). Larger chunks use less CPU and add their length to the delay.
+On one CPU thread it keeps up with chunks of 40 ms or more (see [Performance](#performance)).
 
 ### Pipecat
 
