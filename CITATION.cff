@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use VoxLock, please cite the paper."
+title: "VoxLock"
+authors:
+  - family-names: Siddiqui
+    given-names: Arbaz
+license: Apache-2.0
+repository-code: "https://github.com/arbazsiddiqui/voxlock"
+url: "https://huggingface.co/arbazsiddiqui/voxlock"
+preferred-citation:
+  type: article
+  title: "VoxLock: Target-Speaker Extraction for Voice Agents Without an Enrollment Step"
+  authors:
+    - family-names: Siddiqui
+      given-names: Arbaz
+  year: 2026
+  journal: "arXiv preprint"
+  identifiers:
+    - type: other
+      value: "arXiv:2610.40727"
+  url: "https://arxiv.org/abs/2610.40727"

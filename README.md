@@ -217,6 +217,20 @@ REAL-TSE tfmap_context_causal_100
 
 Built on the REAL-TSE challenge baseline and [WeSep](https://github.com/wenet-e2e/wesep) by Shuai Wang, Ke Zhang and co-authors, with [WeSpeaker](https://github.com/wenet-e2e/wespeaker)'s ECAPA model. Trained on [LibriSpeech](https://www.openslr.org/12) and the [AMI Meeting Corpus](https://groups.inf.ed.ac.uk/ami/corpus/).
 
+## Citation
+
+```bibtex
+@misc{siddiqui2026voxlock,
+  title         = {VoxLock: Target-Speaker Extraction for Voice Agents Without an Enrollment Step},
+  author        = {Siddiqui, Arbaz},
+  year          = {2026},
+  eprint        = {2610.40727},
+  archivePrefix = {arXiv},
+  primaryClass  = {eess.AS},
+  url           = {https://arxiv.org/abs/2610.40727}
+}
+```
+
 ## License
 
 Apache-2.0.
