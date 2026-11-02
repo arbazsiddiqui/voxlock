@@ -6,7 +6,6 @@
 
 <p>
   <a href="https://arxiv.org/abs/2610.40727"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2610.40727-b31b1b?logo=arxiv&logoColor=white"></a>
-  <a href="https://huggingface.co/papers/2610.40727"><img alt="Hugging Face paper page" src="https://img.shields.io/badge/%F0%9F%A4%97%20paper-2610.40727-yellow"></a>
   <a href="https://pypi.org/project/voxlock/"><img alt="PyPI" src="https://img.shields.io/pypi/v/voxlock?label=pypi&cacheSeconds=3600"></a>
   <a href="https://huggingface.co/arbazsiddiqui/voxlock"><img alt="Hugging Face" src="https://img.shields.io/badge/%F0%9F%A4%97%20model-voxlock-yellow"></a>
   <a href="#results"><img alt="Krisp benchmark WER 4.95%" src="https://img.shields.io/badge/Krisp%20benchmark%20WER-4.95%25-brightgreen"></a>
