@@ -2,7 +2,7 @@
 
 **The best performing voice isolator there is.** VoxLock is an open-source voice isolation model: it keeps the caller's voice and removes the other voices in the room before speech-to-text hears them. Made for voice agents and phone calls: one input, the call audio, and it picks out the caller by itself. It streams on a CPU with 24 ms of algorithmic latency, and plugs into [Pipecat](#pipecat) and [LiveKit](#livekit) voice agents.
 
-**[Write-up](https://arbazsiddiqui.me/voxlock)** · **[Paper](https://arxiv.org/abs/2610.40727)** · **[Model on Hugging Face](https://huggingface.co/arbazsiddiqui/voxlock)** · **[Try it in your browser](https://huggingface.co/spaces/arbazsiddiqui/voxlock)**
+**[Paper](https://arxiv.org/abs/2610.40727)** · **[Model on Hugging Face](https://huggingface.co/arbazsiddiqui/voxlock)** · **[Try it in your browser](https://huggingface.co/spaces/arbazsiddiqui/voxlock)** · **[Write-up](https://arbazsiddiqui.me/voxlock)**
 
 <p>
   <a href="https://arxiv.org/abs/2610.40727"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2610.40727-b31b1b?logo=arxiv&logoColor=white"></a>
