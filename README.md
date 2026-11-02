@@ -6,8 +6,9 @@
 
 <p>
   <a href="https://arxiv.org/abs/2610.40727"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2610.40727-b31b1b?logo=arxiv&logoColor=white"></a>
-  <a href="https://pypi.org/project/voxlock/"><img alt="PyPI" src="https://img.shields.io/pypi/v/voxlock?label=pypi&cacheSeconds=3600"></a>
   <a href="https://huggingface.co/arbazsiddiqui/voxlock"><img alt="Hugging Face" src="https://img.shields.io/badge/%F0%9F%A4%97%20model-voxlock-yellow"></a>
+  <a href="https://github.com/arbazsiddiqui/voxlock"><img alt="GitHub" src="https://img.shields.io/badge/github-voxlock-181717?logo=github"></a>
+  <a href="https://pypi.org/project/voxlock/"><img alt="PyPI" src="https://img.shields.io/pypi/v/voxlock?label=pypi&cacheSeconds=3600"></a>
   <a href="#results"><img alt="Krisp benchmark WER 4.95%" src="https://img.shields.io/badge/Krisp%20benchmark%20WER-4.95%25-brightgreen"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
   <a href="#livekit"><img alt="LiveKit Agents plugin" src="https://img.shields.io/badge/LiveKit%20Agents-plugin-1fd5f9"></a>
