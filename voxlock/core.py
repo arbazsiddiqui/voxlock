@@ -108,6 +108,10 @@ class Stream:
         self.vl = vl
         self.voice = dict(zip(("enroll_n", "k", "v"), vl.enroll.run(None, {"enroll": sample[None]})))
         self.h = np.zeros(vl.state, np.float32); self.c = np.zeros_like(self.h)
+        self._start()
+
+    def _start(self):
+        """A new segment: fresh padding and overlap-add state, same voice and LSTM memory."""
         self.head = np.zeros(0, np.float32)        # first samples, until the start padding can be built
         self.buf = None                            # padded input not yet consumed by a frame
         self.ola = np.zeros(NFFT, np.float32); self.env = np.zeros(NFFT, np.float32)
@@ -149,8 +153,10 @@ class Stream:
         return y
 
     def flush(self):
-        """End of the call: returns the last samples still held back."""
+        """End of the call or segment: returns the last samples still held back. A push() after it starts a new
+        segment with the same voice."""
         if self.buf is None:
+            self._start()
             return np.zeros(0, np.float32)
         x = np.concatenate([self.buf, self.buf[-PAD - 1: -1][::-1]])  # end padding (reflect)
         nfr = 1 + (len(x) - NFFT) // HOP
@@ -159,8 +165,7 @@ class Stream:
         y = self._run(100)
         y = np.concatenate([y, self.ola / np.where(self.env > 1e-11, self.env, 1.0) * GAIN])
         y = y[: max(0, self.n_in - self.n_out)]   # past the input there is only padding, under a near-zero window
-        self.n_out += len(y)
-        self.buf = None
+        self._start()
         return y
 
 class LiveStream:
