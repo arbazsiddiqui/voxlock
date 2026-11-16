@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- A stream's `push()` after `flush()` starts a new segment with the same voice. It used to run the first segment through the model again and return about twice as many samples as it was given (#1). The same goes for `live()`. One call per stream, as in `isolate()` and the Pipecat and LiveKit filters, gives the same output as before.
+
 ## 1.3.0
 
 - A LiveKit Agents plugin: `voxlock.livekit.VoxLockFilter`, a frame processor for `room_io.AudioInputOptions(noise_cancellation=...)` (`pip install "voxlock[livekit]"`, or `pip install livekit-plugins-voxlock` for `from livekit.plugins import voxlock`). The model runs on its own thread, so the agent's event loop spends about 0.3 ms per frame on it; each frame comes back whole, 124 ms behind in a 16 kHz session. The caller keeps their voice lock across a track change, pre-connect audio passes through unchanged, and `download-files` fetches the model. Tested end to end through a LiveKit server, in an `rtc.AudioStream` and in an `AgentSession`.
