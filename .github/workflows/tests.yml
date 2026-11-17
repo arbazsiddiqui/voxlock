@@ -21,4 +21,4 @@ jobs:
       - name: Fetch the model
         run: voxlock download
       - name: Test
-        run: pytest -q tests/test_live.py tests/test_sample_length.py tests/test_livekit.py
+        run: pytest -q tests/test_live.py tests/test_sample_length.py tests/test_flush.py tests/test_livekit.py

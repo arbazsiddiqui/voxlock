@@ -1,5 +1,5 @@
 """A push() after flush() starts a new segment with the same voice and LSTM memory: same length out as in, and the
-same audio as a new stream that starts from that memory. Runs the fp32 model (downloaded on first use).
+same audio as a new stream that starts from that memory. Runs the int8 model (downloaded on first use).
 
     python tests/test_flush.py      (or pytest tests/test_flush.py)
 """
@@ -20,7 +20,7 @@ def run(s, x, chunk):
 
 
 def test_push_after_flush_starts_a_new_segment():
-    vl = voxlock.VoxLock(precision="fp32", threads=1)
+    vl = voxlock.VoxLock(threads=1)
     sample, a, b = noise(4.0, 0.3), noise(2.0), noise(2.0)
     for chunk in (len(a), 640, 100):
         s = vl.stream(sample)
@@ -33,7 +33,7 @@ def test_push_after_flush_starts_a_new_segment():
 
 
 def test_flush_twice_is_empty():
-    vl = voxlock.VoxLock(precision="fp32", threads=1)
+    vl = voxlock.VoxLock(threads=1)
     s = vl.stream(noise(4.0, 0.3))
     s.push(noise(1.0)); s.flush()
     assert len(s.flush()) == 0

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.1
 
 - A stream's `push()` after `flush()` starts a new segment with the same voice. It used to run the first segment through the model again and return about twice as many samples as it was given (#1). The same goes for `live()`. One call per stream, as in `isolate()` and the Pipecat and LiveKit filters, gives the same output as before.
 
